@@ -1,4 +1,5 @@
 using EnterpriseOrderManagement.Api.Models;
+using EnterpriseOrderManagement.Api.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 
 namespace EnterpriseOrderManagement.Api.Controllers;
@@ -7,27 +8,17 @@ namespace EnterpriseOrderManagement.Api.Controllers;
 [Route("api/products")]
 public class ProductsController : ControllerBase
 {
-    [HttpGet]
-    public IActionResult GetProducts()
-    {
-        var products = new List<Product>
-        {
-            new Product
-            {
-                Id = 1,
-                Name = "Laptop",
-                Price = 899.99m,
-                Stock = 10
-            },
+    private readonly IProductService _productService;
 
-            new Product
-            {
-                Id = 2,
-                Name = "Mouse",
-                Price = 25.50m,
-                Stock = 50
-            }
-        };
+    public ProductsController(IProductService productService)
+    {
+        _productService = productService;
+    }
+
+    [HttpGet]
+    public ActionResult<IEnumerable<Product>> GetProducts()
+    {
+        var products = _productService.GetAll();
 
         return Ok(products);
     }
