@@ -16,7 +16,7 @@ public class ProductsController : ControllerBase
     }
 
     [HttpGet]
-    public ActionResult<IEnumerable<Product>> GetProducts()
+    public ActionResult<IReadOnlyList<Product>> GetProducts()
     {
         var products = _productService.GetAll();
 
