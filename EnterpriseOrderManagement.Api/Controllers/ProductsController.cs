@@ -6,19 +6,15 @@ namespace EnterpriseOrderManagement.Api.Controllers;
 
 [ApiController]
 [Route("api/products")]
-public class ProductsController : ControllerBase
+public class ProductsController(
+    IProductService productService)
+    : ControllerBase
 {
-    private readonly IProductService _productService;
-
-    public ProductsController(IProductService productService)
-    {
-        _productService = productService;
-    }
-
     [HttpGet]
-    public ActionResult<IReadOnlyList<Product>> GetProducts()
+    public async Task<ActionResult<IReadOnlyList<Product>>> GetProducts(
+        CancellationToken cancellationToken)
     {
-        var products = _productService.GetAll();
+        var products = await productService.GetAllAsync(cancellationToken);
 
         return Ok(products);
     }

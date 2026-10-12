@@ -4,17 +4,13 @@ using EnterpriseOrderManagement.Api.Services.Interfaces;
 
 namespace EnterpriseOrderManagement.Api.Services;
 
-public class ProductService : IProductService
+public class ProductService(
+    IProductRepository productRepository)
+    : IProductService
 {
-    private readonly IProductRepository _productRepository;
-
-    public ProductService(IProductRepository productRepository)
+    public Task<IReadOnlyList<Product>> GetAllAsync(
+        CancellationToken cancellationToken = default)
     {
-        _productRepository = productRepository;
-    }
-
-    public IReadOnlyList<Product> GetAll()
-    {
-        return _productRepository.GetAll();
+        return productRepository.GetAllAsync(cancellationToken);
     }
 }

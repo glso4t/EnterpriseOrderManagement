@@ -4,5 +4,6 @@ namespace EnterpriseOrderManagement.Api.Repositories.Interfaces;
 
 public interface IProductRepository
 {
-    IReadOnlyList<Product> GetAll();
+    Task<IReadOnlyList<Product>> GetAllAsync(
+        CancellationToken cancellationToken = default);
 }
