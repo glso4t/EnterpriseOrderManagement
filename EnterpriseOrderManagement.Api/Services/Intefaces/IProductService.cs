@@ -15,4 +15,13 @@ public interface IProductService
     Task<Product> CreateAsync(
         CreateProductRequest request,
         CancellationToken cancellationToken = default);
+
+    Task<Product?> UpdateAsync(
+        int id,
+        UpdateProductRequest request,
+        CancellationToken cancellationToken = default);
+
+    Task<bool> DeleteAsync(
+        int id,
+        CancellationToken cancellationToken = default);
 }

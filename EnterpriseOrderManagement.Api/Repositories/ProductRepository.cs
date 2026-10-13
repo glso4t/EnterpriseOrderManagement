@@ -9,6 +9,7 @@ public class ProductRepository(
     EnterpriseOrderManagementDbContext dbContext)
     : IProductRepository
 {
+
     public async Task<IReadOnlyList<Product>> GetAllAsync(
         CancellationToken cancellationToken = default)
     {
@@ -35,5 +36,22 @@ public class ProductRepository(
         dbContext.Products.Add(product);    // λεμε στο EFCore να προσθέσει το αντικείμενο στη μνήμη
         await dbContext.SaveChangesAsync(cancellationToken);    //Γράφονται τα δεδομένα μόνιμα (data persistence) στη SQL Server database
         return product;
+    }
+
+    public async Task<Product> UpdateAsync(
+        Product product,
+        CancellationToken cancellationToken = default)
+    {
+        dbContext.Products.Update(product);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return product;
+    }
+
+    public async Task DeleteAsync(
+        Product product,
+        CancellationToken cancellationToken = default)
+    {
+        dbContext.Products.Remove(product);
+        await dbContext.SaveChangesAsync(cancellationToken);
     }
 }
