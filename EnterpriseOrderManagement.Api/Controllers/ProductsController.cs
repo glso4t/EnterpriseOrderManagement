@@ -11,6 +11,14 @@ public class ProductsController(
     IProductService productService)
     : ControllerBase
 {
+    private ObjectResult ProductNotFound(int id)
+    {
+        return Problem(
+            statusCode: StatusCodes.Status404NotFound,
+            title: "Product not found.",
+            detail: $"Product with ID {id} was not found.");
+    }
+
 //GET
     [HttpGet]
     [ProducesResponseType(
@@ -38,7 +46,7 @@ public class ProductsController(
             cancellationToken);
         if (product is null)
         {
-            return NotFound();
+            return ProductNotFound(id);
         }
         return Ok(product);
     }
@@ -80,7 +88,7 @@ public class ProductsController(
             cancellationToken);
         if (updatedProduct is null)
         {
-            return NotFound();
+            return ProductNotFound(id);
         }
         return Ok(updatedProduct);
     }
@@ -101,7 +109,7 @@ public class ProductsController(
             cancellationToken);
         if (updatedProduct is null)
         {
-            return NotFound();
+            return ProductNotFound(id);
         }
         return Ok(updatedProduct);
     }
@@ -119,7 +127,7 @@ public class ProductsController(
             cancellationToken);
         if (!deleted)
         {
-            return NotFound();
+            return ProductNotFound(id);
         }
         return NoContent();
     }
