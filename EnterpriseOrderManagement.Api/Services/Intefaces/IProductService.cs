@@ -5,18 +5,18 @@ namespace EnterpriseOrderManagement.Api.Services.Interfaces;
 
 public interface IProductService
 {
-    Task<IReadOnlyList<Product>> GetAllAsync(
+    Task<IReadOnlyList<ProductResponse>> GetAllAsync(
         CancellationToken cancellationToken = default);
 
-    Task<Product?> GetByIdAsync(
+    Task<ProductResponse?> GetByIdAsync(
         int id,
         CancellationToken cancellationToken = default);
 
-    Task<Product> CreateAsync(
+    Task<ProductResponse> CreateAsync(
         CreateProductRequest request,
         CancellationToken cancellationToken = default);
 
-    Task<Product?> UpdateAsync(
+    Task<ProductResponse?> UpdateAsync(
         int id,
         UpdateProductRequest request,
         CancellationToken cancellationToken = default);

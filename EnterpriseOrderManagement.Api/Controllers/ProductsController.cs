@@ -14,9 +14,9 @@ public class ProductsController(
 //GET
     [HttpGet]
     [ProducesResponseType(
-        typeof(IReadOnlyList<Product>),
+        typeof(IReadOnlyList<ProductResponse>),
         StatusCodes.Status200OK)]
-    public async Task<ActionResult<IReadOnlyList<Product>>> GetProducts(
+    public async Task<ActionResult<IReadOnlyList<ProductResponse>>> GetProducts(
         CancellationToken cancellationToken)
     {
         var products = await productService.GetAllAsync(cancellationToken);
@@ -26,10 +26,10 @@ public class ProductsController(
 //GET BY ID
     [HttpGet("{id:int}")]
     [ProducesResponseType(
-        typeof(Product),
+        typeof(ProductResponse),
         StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<Product>> GetProductById(
+    public async Task<ActionResult<ProductResponse>> GetProductById(
         int id,
         CancellationToken cancellationToken)
     {
@@ -46,10 +46,10 @@ public class ProductsController(
 //POST
     [HttpPost]
     [ProducesResponseType(
-        typeof(Product),
+        typeof(ProductResponse),
         StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<ActionResult<Product>> CreateProduct(
+    public async Task<ActionResult<ProductResponse>> CreateProduct(
         [FromBody] CreateProductRequest request,
         CancellationToken cancellationToken)
     {
@@ -65,11 +65,11 @@ public class ProductsController(
 //PUT
     [HttpPut("{id:int}")]
     [ProducesResponseType(
-        typeof(Product),
+        typeof(ProductResponse),
         StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<Product>> UpdateProduct(
+    public async Task<ActionResult<ProductResponse>> UpdateProduct(
         int id,
         [FromBody] UpdateProductRequest request,
         CancellationToken cancellationToken)

@@ -9,22 +9,43 @@ public class ProductService(
     IProductRepository productRepository)
     : IProductService
 {
-    public Task<IReadOnlyList<Product>> GetAllAsync(
-        CancellationToken cancellationToken = default)
+    private static ProductResponse ToResponse(Product product)
     {
-        return productRepository.GetAllAsync(cancellationToken);
+        return new ProductResponse
+        {
+            Id = product.Id,
+            Name = product.Name,
+            Price = product.Price,
+            Stock = product.Stock
+        };
     }
 
-    public Task<Product?> GetByIdAsync(
+    public async Task<IReadOnlyList<ProductResponse>> GetAllAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var products = await productRepository.GetAllAsync(
+            cancellationToken);
+
+        return products
+            .Select(ToResponse)
+            .ToList();    
+    }
+
+    public async Task<ProductResponse?> GetByIdAsync(
         int id,
         CancellationToken cancellationToken = default)
     {
-        return productRepository.GetByIdAsync(
+        var product = await productRepository.GetByIdAsync(
             id,
             cancellationToken);
+        if (product is null)
+        {
+            return null;
+        }
+        return ToResponse(product);
     }
 
-    public Task<Product> CreateAsync(
+    public async Task<ProductResponse> CreateAsync(
         CreateProductRequest request,
         CancellationToken cancellationToken = default)
     {
@@ -34,12 +55,13 @@ public class ProductService(
             Price = request.Price,
             Stock = request.Stock
         };
-        return productRepository.AddAsync(
+        var createdProduct = await productRepository.AddAsync(
             product,
             cancellationToken);
+        return ToResponse(createdProduct);
     }
 
-    public async Task<Product?> UpdateAsync(
+    public async Task<ProductResponse?> UpdateAsync(
         int id,
         UpdateProductRequest request,
         CancellationToken cancellationToken = default)
@@ -54,9 +76,10 @@ public class ProductService(
         product.Name = request.Name.Trim();
         product.Price = request.Price;
         product.Stock = request.Stock;
-        return await productRepository.UpdateAsync(
+        var updatedProduct = await productRepository.UpdateAsync(
             product,
             cancellationToken);
+        return ToResponse(updatedProduct);
     }
 
     public async Task<bool> DeleteAsync(
