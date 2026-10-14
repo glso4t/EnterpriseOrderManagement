@@ -82,6 +82,36 @@ public class ProductService(
         return ToResponse(updatedProduct);
     }
 
+    public async Task<ProductResponse?> PatchAsync(
+        int id,
+        PatchProductRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var product = await productRepository.GetByIdAsync(
+            id,
+            cancellationToken);
+        if (product is null)
+        {
+            return null;
+        }
+        if (request.Name is not null)
+        {
+            product.Name = request.Name.Trim();
+        }
+        if (request.Price.HasValue)
+        {
+            product.Price = request.Price.Value;    //To .Value προκύπτει από τον τύπο δεδομένων του πεδίου, επειδή το κάναμε Nullable (decimal? και int?).
+        }
+        if (request.Stock.HasValue)
+        {
+            product.Stock = request.Stock.Value;    //To .Value προκύπτει από τον τύπο δεδομένων του πεδίου, επειδή το κάναμε Nullable (decimal? και int?).
+        }
+        var updatedProduct = await productRepository.UpdateAsync(
+            product,
+            cancellationToken);
+        return ToResponse(updatedProduct);
+    }
+
     public async Task<bool> DeleteAsync(
         int id,
         CancellationToken cancellationToken = default)

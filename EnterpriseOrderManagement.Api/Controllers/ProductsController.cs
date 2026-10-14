@@ -85,6 +85,27 @@ public class ProductsController(
         return Ok(updatedProduct);
     }
 
+//PATCH
+    [HttpPatch("{id:int}")]
+    [ProducesResponseType(typeof(ProductResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<ProductResponse>> PatchProduct(
+        int id,
+        [FromBody] PatchProductRequest request,
+        CancellationToken cancellationToken)
+    {
+        var updatedProduct = await productService.PatchAsync(
+            id,
+            request,
+            cancellationToken);
+        if (updatedProduct is null)
+        {
+            return NotFound();
+        }
+        return Ok(updatedProduct);
+    }
+
 //DELETE
     [HttpDelete("{id:int}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]

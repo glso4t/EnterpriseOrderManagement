@@ -21,6 +21,11 @@ public interface IProductService
         UpdateProductRequest request,
         CancellationToken cancellationToken = default);
 
+    Task<ProductResponse?> PatchAsync(
+        int id,
+        PatchProductRequest request,
+        CancellationToken cancellationToken = default);
+
     Task<bool> DeleteAsync(
         int id,
         CancellationToken cancellationToken = default);
