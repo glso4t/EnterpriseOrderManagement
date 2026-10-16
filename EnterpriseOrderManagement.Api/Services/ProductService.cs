@@ -2,11 +2,16 @@ using EnterpriseOrderManagement.Api.Models;
 using EnterpriseOrderManagement.Api.Repositories.Interfaces;
 using EnterpriseOrderManagement.Api.Services.Interfaces;
 using EnterpriseOrderManagement.Api.Dtos.Products;
+using EnterpriseOrderManagement.Api.Configuration;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace EnterpriseOrderManagement.Api.Services;
 
 public class ProductService(
-    IProductRepository productRepository)
+    IProductRepository productRepository,
+    ILogger<ProductService> logger,
+    IOptions<InventorySettings> inventoryOptions) 
     : IProductService
 {
     private static ProductResponse ToResponse(Product product)
@@ -20,12 +25,27 @@ public class ProductService(
         };
     }
 
+    private void LogLowStock(Product product)
+    {
+        var threshold = inventoryOptions.Value.LowStockThreshold;
+        if (product.Stock <= threshold)
+        {
+            logger.LogWarning(
+                "Product {ProductId} has low stock. Stock: {Stock}. Threshold: {Threshold}",
+                product.Id,
+                product.Stock,
+                threshold);
+        }
+    }
+
     public async Task<IReadOnlyList<ProductResponse>> GetAllAsync(
         CancellationToken cancellationToken = default)
     {
         var products = await productRepository.GetAllAsync(
             cancellationToken);
-
+        logger.LogDebug(
+            "Retrieved {ProductCount} products",
+            products.Count);
         return products
             .Select(ToResponse)
             .ToList();    
@@ -40,7 +60,10 @@ public class ProductService(
             cancellationToken);
         if (product is null)
         {
-            return null;
+        logger.LogDebug(
+            "Product with ID {ProductId} was not found",
+            id);
+        return null;
         }
         return ToResponse(product);
     }
@@ -58,6 +81,10 @@ public class ProductService(
         var createdProduct = await productRepository.AddAsync(
             product,
             cancellationToken);
+        logger.LogInformation(
+            "Created product with ID {ProductId}",
+            createdProduct.Id);
+        LogLowStock(createdProduct);
         return ToResponse(createdProduct);
     }
 
@@ -71,6 +98,9 @@ public class ProductService(
             cancellationToken);
         if (product is null)
         {
+            logger.LogDebug(
+                "Cannot update product {ProductId} because it was not found",
+                id);
             return null;
         }
         product.Name = request.Name.Trim();
@@ -79,6 +109,10 @@ public class ProductService(
         var updatedProduct = await productRepository.UpdateAsync(
             product,
             cancellationToken);
+        logger.LogInformation(
+            "Updated product with ID {ProductId}",
+            updatedProduct.Id);
+        LogLowStock(updatedProduct);
         return ToResponse(updatedProduct);
     }
 
@@ -92,6 +126,9 @@ public class ProductService(
             cancellationToken);
         if (product is null)
         {
+            logger.LogDebug(
+                "Cannot patch product {ProductId} because it was not found",
+                id);
             return null;
         }
         if (request.Name is not null)
@@ -109,6 +146,10 @@ public class ProductService(
         var updatedProduct = await productRepository.UpdateAsync(
             product,
             cancellationToken);
+        logger.LogInformation(
+            "Patched product with ID {ProductId}",
+            updatedProduct.Id);
+        LogLowStock(updatedProduct);
         return ToResponse(updatedProduct);
     }
 
@@ -121,11 +162,17 @@ public class ProductService(
             cancellationToken);
         if (product is null)
         {
+            logger.LogDebug(
+                "Cannot delete product {ProductId} because it was not found",
+                id);
             return false;
         }
         await productRepository.DeleteAsync(
             product,
             cancellationToken);
+        logger.LogInformation(
+            "Deleted product with ID {ProductId}",
+            id);
         return true;
     }
 }

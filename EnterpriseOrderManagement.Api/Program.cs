@@ -5,7 +5,7 @@ using EnterpriseOrderManagement.Api.Services.Interfaces;
 using EnterpriseOrderManagement.Api.Data;
 using Microsoft.EntityFrameworkCore;
 using EnterpriseOrderManagement.Api.Middleware;
-
+using EnterpriseOrderManagement.Api.Configuration;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -24,6 +24,10 @@ builder.Services.AddDbContext<EnterpriseOrderManagementDbContext>(
         options.UseSqlServer(
             builder.Configuration.GetConnectionString(
                 "DefaultConnection")));
+
+builder.Services.Configure<InventorySettings>(
+    builder.Configuration.GetSection(
+        InventorySettings.SectionName));
 
 builder.Services.AddScoped<
     IProductRepository,
