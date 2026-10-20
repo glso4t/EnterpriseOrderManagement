@@ -29,6 +29,8 @@ public class EnterpriseOrderManagementDbContext(
                 .HasPrecision(18, 2);
             entity.Property(product => product.Stock)
                 .IsRequired();
+            entity.Property(product => product.RowVersion)
+                .IsRowVersion();
             entity.HasData(
                 new Product
                 {

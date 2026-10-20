@@ -10,6 +10,8 @@ public class Product
 
     public int Stock { get; set; }
 
+    public byte[] RowVersion { get; set; } = Array.Empty<byte>();
+
     public ICollection<OrderItem> OrderItems { get; set; }
         = new List<OrderItem>();
 }

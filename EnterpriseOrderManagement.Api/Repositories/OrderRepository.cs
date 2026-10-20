@@ -16,6 +16,7 @@ public sealed class OrderRepository(
         return await dbContext.Orders
             .AsNoTracking()
             .Include(order => order.Items)  //τα items να φορτώνονται μαζί με την παραγγελία
+                .ThenInclude(item => item.Product)  //και τα αντίστοιχα προϊόντα
             .FirstOrDefaultAsync(
                 order => order.Id == id,
                 cancellationToken);

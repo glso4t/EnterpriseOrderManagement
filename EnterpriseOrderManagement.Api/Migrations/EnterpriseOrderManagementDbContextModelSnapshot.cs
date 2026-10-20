@@ -116,6 +116,12 @@ namespace EnterpriseOrderManagement.Api.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
                     b.Property<int>("Stock")
                         .HasColumnType("int");
 
@@ -129,6 +135,7 @@ namespace EnterpriseOrderManagement.Api.Migrations
                             Id = 1,
                             Name = "Laptop",
                             Price = 899.99m,
+                            RowVersion = new byte[0],
                             Stock = 10
                         },
                         new
@@ -136,6 +143,7 @@ namespace EnterpriseOrderManagement.Api.Migrations
                             Id = 2,
                             Name = "Mouse",
                             Price = 25.50m,
+                            RowVersion = new byte[0],
                             Stock = 50
                         });
                 });

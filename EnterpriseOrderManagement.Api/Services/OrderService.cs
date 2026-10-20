@@ -17,6 +17,7 @@ public sealed class OrderService(
             .Select(item => new OrderItemResponse
             {
                 ProductId = item.ProductId,
+                ProductName = item.Product.Name,
                 Quantity = item.Quantity,
                 UnitPrice = item.UnitPrice,
                 LineTotal = item.Quantity * item.UnitPrice
@@ -91,6 +92,7 @@ public sealed class OrderService(
             orderItems.Add(new OrderItem    //δημιουργία της γραμμής παραγγελίας
             {
                 ProductId = product.Id,
+                Product = product,
                 Quantity = itemRequest.Quantity,
                 UnitPrice = product.Price   //Κλειδώνουμε την τρέχουσα τιμή
             });
