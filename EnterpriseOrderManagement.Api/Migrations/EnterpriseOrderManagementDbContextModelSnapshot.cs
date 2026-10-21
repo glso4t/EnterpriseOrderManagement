@@ -109,7 +109,12 @@ namespace EnterpriseOrderManagement.Api.Migrations
 
                     b.HasIndex("ProductId");
 
-                    b.ToTable("OrderItems");
+                    b.ToTable("OrderItems", t =>
+                        {
+                            t.HasCheckConstraint("CK_OrderItems_Quantity_Positive", "[Quantity] > 0");
+
+                            t.HasCheckConstraint("CK_OrderItems_UnitPrice_NonNegative", "[UnitPrice] >= 0");
+                        });
                 });
 
             modelBuilder.Entity("EnterpriseOrderManagement.Api.Models.Product", b =>
@@ -140,7 +145,12 @@ namespace EnterpriseOrderManagement.Api.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Products");
+                    b.ToTable("Products", t =>
+                        {
+                            t.HasCheckConstraint("CK_Products_Price_Positive", "[Price] > 0");
+
+                            t.HasCheckConstraint("CK_Products_Stock_NonNegative", "[Stock] >= 0");
+                        });
 
                     b.HasData(
                         new

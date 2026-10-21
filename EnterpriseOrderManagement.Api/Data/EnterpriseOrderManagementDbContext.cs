@@ -31,6 +31,15 @@ public class EnterpriseOrderManagementDbContext(
                 .IsRequired();
             entity.Property(product => product.RowVersion)
                 .IsRowVersion();
+            entity.ToTable(table =>
+            {   
+                table.HasCheckConstraint(
+                    "CK_Products_Price_Positive",
+                    "[Price] > 0");
+                table.HasCheckConstraint(
+                    "CK_Products_Stock_NonNegative",
+                    "[Stock] >= 0");
+            });
             entity.HasData(
                 new Product
                 {
@@ -84,6 +93,16 @@ public class EnterpriseOrderManagementDbContext(
             .IsRequired();
         entity.Property(item => item.UnitPrice)
             .HasPrecision(18, 2);
+        entity.ToTable(table =>
+        {
+            table.HasCheckConstraint(
+                "CK_OrderItems_Quantity_Positive",
+                "[Quantity] > 0");
+
+            table.HasCheckConstraint(
+                "CK_OrderItems_UnitPrice_NonNegative",
+                "[UnitPrice] >= 0");
+        });
         entity.HasOne(item => item.Order)
             .WithMany(order => order.Items)
             .HasForeignKey(item => item.OrderId)
