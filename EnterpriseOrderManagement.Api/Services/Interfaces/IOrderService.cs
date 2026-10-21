@@ -1,5 +1,7 @@
 using EnterpriseOrderManagement.Api.Dtos.Orders;
 using EnterpriseOrderManagement.Api.Services.Results;
+using EnterpriseOrderManagement.Api.Dtos.Common;
+using EnterpriseOrderManagement.Api.Dtos.Orders;
 
 namespace EnterpriseOrderManagement.Api.Services.Interfaces;
 
@@ -19,5 +21,9 @@ public interface IOrderService
 
     Task<OrderStatusChangeResult> CancelAsync(
         int id,
+        CancellationToken cancellationToken = default);
+
+    Task<PagedResponse<OrderResponse>> GetPagedAsync(
+        OrderQueryParameters parameters,
         CancellationToken cancellationToken = default);
 }

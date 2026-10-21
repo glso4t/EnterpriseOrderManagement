@@ -1,4 +1,6 @@
 using EnterpriseOrderManagement.Api.Dtos.Orders;
+using EnterpriseOrderManagement.Api.Dtos.Common;
+using EnterpriseOrderManagement.Api.Dtos.Orders;
 using EnterpriseOrderManagement.Api.Services.Interfaces;
 using EnterpriseOrderManagement.Api.Services.Results;
 using Microsoft.AspNetCore.Mvc;
@@ -10,7 +12,7 @@ namespace EnterpriseOrderManagement.Api.Controllers;
 public sealed class OrdersController(
     IOrderService orderService) : ControllerBase
 {
-//GET BY ID ONLY
+//GET BY ID
     [HttpGet("{id:int}")]
     [ProducesResponseType(
         typeof(OrderResponse),
@@ -28,6 +30,32 @@ public sealed class OrdersController(
             return NotFound();
         }
         return Ok(order);
+    }
+
+//GET
+    [HttpGet]
+    [ProducesResponseType(
+        typeof(PagedResponse<OrderResponse>),
+        StatusCodes.Status200OK)]
+    public async Task<ActionResult<PagedResponse<OrderResponse>>> GetOrders(
+        [FromQuery] OrderQueryParameters parameters,
+        CancellationToken cancellationToken)
+    {
+        if (parameters.FromDate.HasValue
+            && parameters.ToDate.HasValue
+            && parameters.FromDate > parameters.ToDate)
+        {
+            return BadRequest(new ProblemDetails
+            {
+                Status = StatusCodes.Status400BadRequest,
+                Title = "Invalid date range.",
+                Detail = "FromDate must be earlier than or equal to ToDate."
+            });
+        }
+        var result = await orderService.GetPagedAsync(
+            parameters,
+            cancellationToken);
+        return Ok(result);
     }
 
 //POST

@@ -1,4 +1,6 @@
 using EnterpriseOrderManagement.Api.Dtos.Orders;
+using EnterpriseOrderManagement.Api.Dtos.Common;
+using EnterpriseOrderManagement.Api.Dtos.Orders;
 using EnterpriseOrderManagement.Api.Models;
 using EnterpriseOrderManagement.Api.Repositories.Interfaces;
 using EnterpriseOrderManagement.Api.Services.Interfaces;
@@ -185,4 +187,22 @@ public sealed class OrderService(
             ToResponse(updatedOrder));
     }
 
+    public async Task<PagedResponse<OrderResponse>> GetPagedAsync(
+    OrderQueryParameters parameters,
+    CancellationToken cancellationToken = default)
+    {
+        var result = await orderRepository.GetPagedAsync(
+            parameters,
+            cancellationToken);
+        var responses = result.Items
+            .Select(ToResponse)
+            .ToList();
+        return new PagedResponse<OrderResponse>
+        {
+            Items = responses,
+            Page = parameters.Page,
+            PageSize = parameters.PageSize,
+            TotalCount = result.TotalCount
+        };
+    }
 }
