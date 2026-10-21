@@ -8,6 +8,8 @@ public sealed class OrderResponse
 
     public DateTime OrderDate { get; init; }
 
+    public string Status { get; init; } = string.Empty;
+
     public IReadOnlyList<OrderItemResponse> Items { get; init; }
         = Array.Empty<OrderItemResponse>();
 

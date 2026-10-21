@@ -65,6 +65,13 @@ public class EnterpriseOrderManagementDbContext(
     {
         entity.Property(order => order.OrderDate)
             .IsRequired();
+        entity.Property(order => order.Status)
+            .HasConversion<string>()
+            .HasMaxLength(20)
+            .HasDefaultValue(OrderStatus.Pending)
+            .IsRequired();
+        entity.Property(order => order.RowVersion)
+            .IsRowVersion();
         entity.HasOne(order => order.Customer)
             .WithMany(customer => customer.Orders)
             .HasForeignKey(order => order.CustomerId)

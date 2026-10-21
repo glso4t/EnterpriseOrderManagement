@@ -89,4 +89,81 @@ public sealed class OrdersController(
             new { id = createdOrder.Id },
             createdOrder);
     }
+
+//CONFIRM Order
+    [HttpPost("{id:int}/confirm")]
+    [ProducesResponseType(
+        typeof(OrderResponse),
+        StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(
+        typeof(ProblemDetails),
+        StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<OrderResponse>> ConfirmOrder(
+        int id,
+        CancellationToken cancellationToken)
+    {
+        var result = await orderService.ConfirmAsync(
+            id,
+            cancellationToken);
+        return ToStatusChangeResponse(result);
+    }
+
+//CANCEL Order
+    [HttpPost("{id:int}/cancel")]
+    [ProducesResponseType(
+        typeof(OrderResponse),
+        StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(
+        typeof(ProblemDetails),
+        StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<OrderResponse>> CancelOrder(
+        int id,
+        CancellationToken cancellationToken)
+    {
+        var result = await orderService.CancelAsync(
+            id,
+            cancellationToken);
+        return ToStatusChangeResponse(result);
+    }
+
+    private ActionResult<OrderResponse> ToStatusChangeResponse(
+        OrderStatusChangeResult result)
+    {
+        if (result.Status == OrderStatusChangeStatus.Success)
+        {
+            return Ok(result.Order);
+        }
+        if (result.Status == OrderStatusChangeStatus.OrderNotFound)
+        {
+            return NotFound(new ProblemDetails
+            {
+                Status = StatusCodes.Status404NotFound,
+                Title = "Order not found.",
+                Detail = "The requested order does not exist."
+            });
+        }
+        if (result.Status == OrderStatusChangeStatus.ProductNotFound)
+        {
+            return NotFound(new ProblemDetails
+            {
+                Status = StatusCodes.Status404NotFound,
+                Title = "Product not found.",
+                Detail = $"Product with ID {result.RelatedId} was not found."
+            });
+        }
+        if (result.Status == OrderStatusChangeStatus.InvalidTransition)
+        {
+            return Conflict(new ProblemDetails
+            {
+                Status = StatusCodes.Status409Conflict,
+                Title = "Invalid order status transition.",
+                Detail = "The requested status change is not allowed for the current order status."
+            });
+        }
+        return Problem(
+            statusCode: StatusCodes.Status500InternalServerError,
+            title: "An unexpected error occurred.");
+    }
 }

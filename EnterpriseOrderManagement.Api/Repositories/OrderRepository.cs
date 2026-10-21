@@ -38,4 +38,33 @@ public sealed class OrderRepository(
         await dbContext.SaveChangesAsync(cancellationToken);
         return order;
     }
+
+public async Task<Order> UpdateStatusAsync(
+    Order order,
+    IReadOnlyCollection<Product> productsToUpdate,
+    CancellationToken cancellationToken = default)
+{
+    var orderToUpdate = new Order    // Δημιουργούμε μια ελαφριά οντότητα για την ενημέρωση της κατάστασης
+    {
+        Id = order.Id,
+        CustomerId = order.CustomerId,
+        OrderDate = order.OrderDate,
+        Status = order.Status,
+        RowVersion = order.RowVersion
+    };
+    dbContext.Orders.Attach(orderToUpdate);
+    dbContext.Entry(orderToUpdate)    // Αλλάζουμε μόνο το Status
+        .Property(entity => entity.Status)
+        .IsModified = true;
+    foreach (var product in productsToUpdate)    // Προσθέτουμε τις αλλαγές αποθέματος στην ίδια αποθήκευση
+    {
+        dbContext.Products.Attach(product);
+        dbContext.Entry(product)
+            .Property(entity => entity.Stock)
+            .IsModified = true;
+    }
+    await dbContext.SaveChangesAsync(cancellationToken);
+    order.RowVersion = orderToUpdate.RowVersion;    // Διατηρούμε στο αρχικό object τη νέα έκδοση που παρήγαγε η βάση
+    return order;
+}
 }

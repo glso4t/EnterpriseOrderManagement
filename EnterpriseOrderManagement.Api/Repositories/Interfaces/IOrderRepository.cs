@@ -12,4 +12,9 @@ public interface IOrderRepository
         Order order,
         IReadOnlyCollection<Product> productsToUpdate,
         CancellationToken cancellationToken = default);
-}
+
+    Task<Order> UpdateStatusAsync(
+        Order order,
+        IReadOnlyCollection<Product> productsToUpdate,
+        CancellationToken cancellationToken = default);
+}   

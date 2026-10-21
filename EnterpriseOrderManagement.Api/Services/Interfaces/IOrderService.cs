@@ -12,4 +12,12 @@ public interface IOrderService
     Task<OrderCreationResult> CreateAsync(
         CreateOrderRequest request,
         CancellationToken cancellationToken = default);
+
+    Task<OrderStatusChangeResult> ConfirmAsync(
+        int id,
+        CancellationToken cancellationToken = default);
+
+    Task<OrderStatusChangeResult> CancelAsync(
+        int id,
+        CancellationToken cancellationToken = default);
 }

@@ -28,6 +28,7 @@ public sealed class OrderService(
             Id = order.Id,
             CustomerId = order.CustomerId,
             OrderDate = order.OrderDate,
+            Status = order.Status.ToString(),
             Items = items,
             TotalAmount = items.Sum(item => item.LineTotal)
         };
@@ -101,6 +102,7 @@ public sealed class OrderService(
         {
             CustomerId = customer.Id,
             OrderDate = DateTime.UtcNow,
+            Status = OrderStatus.Pending,
             Items = orderItems
         };
         var createdOrder = await orderRepository.CreateAsync(
@@ -111,4 +113,76 @@ public sealed class OrderService(
             OrderCreationStatus.Success,
             ToResponse(createdOrder));
     }
+
+    public async Task<OrderStatusChangeResult> ConfirmAsync(
+        int id,
+        CancellationToken cancellationToken = default)
+    {
+        var order = await orderRepository.GetByIdAsync(
+            id,
+            cancellationToken);
+        if (order is null)
+        {
+            return new OrderStatusChangeResult(
+                OrderStatusChangeStatus.OrderNotFound);
+        }
+        if (order.Status != OrderStatus.Pending)    //Μια order μπορεί να confirmed μόνο αν είναι σε κατάσταση Pending
+        {
+            return new OrderStatusChangeResult(
+                OrderStatusChangeStatus.InvalidTransition);
+        }
+        order.Status = OrderStatus.Confirmed;
+        var updatedOrder = await orderRepository.UpdateStatusAsync(
+            order,
+            Array.Empty<Product>(),
+            cancellationToken);
+
+        return new OrderStatusChangeResult(
+            OrderStatusChangeStatus.Success,
+            ToResponse(updatedOrder));
+    }
+
+    public async Task<OrderStatusChangeResult> CancelAsync(
+        int id,
+        CancellationToken cancellationToken = default)
+    {
+        var order = await orderRepository.GetByIdAsync(
+            id,
+            cancellationToken);
+        if (order is null)
+        {
+            return new OrderStatusChangeResult(
+                OrderStatusChangeStatus.OrderNotFound);
+        }
+        if (order.Status is not (
+            OrderStatus.Pending or OrderStatus.Confirmed))  //Μπορούμε να ακυρώσουμε μια παραγγελία μόνο αν είναι Pending ή Confirmed
+        {   // Αν είναι ήδη Cancelled, ο έλεγχος αποτυγχάνει (αποφεύγουμε να επιστραφεί το stock διπλή φορά)
+            return new OrderStatusChangeResult(
+                OrderStatusChangeStatus.InvalidTransition);
+        }
+        var productsToUpdate = new List<Product>();
+        foreach (var item in order.Items)   //Επιστροφή των προϊόντων στο Stock
+        {
+            var product = await productRepository.GetByIdAsync(
+                item.ProductId,
+                cancellationToken);
+            if (product is null)
+            {
+                return new OrderStatusChangeResult(
+                    OrderStatusChangeStatus.ProductNotFound,
+                    RelatedId: item.ProductId);
+            }
+            product.Stock += item.Quantity; //// επιστρέφουμε τα τεμάχια πίσω
+            productsToUpdate.Add(product);
+        }
+        order.Status = OrderStatus.Cancelled;
+        var updatedOrder = await orderRepository.UpdateStatusAsync(
+            order,
+            productsToUpdate,
+            cancellationToken);
+        return new OrderStatusChangeResult(
+            OrderStatusChangeStatus.Success,
+            ToResponse(updatedOrder));
+    }
+
 }
