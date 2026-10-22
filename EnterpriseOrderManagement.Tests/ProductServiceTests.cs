@@ -1,3 +1,4 @@
+using EnterpriseOrderManagement.Api.Dtos.Products;
 using EnterpriseOrderManagement.Api.Configuration;
 using EnterpriseOrderManagement.Api.Models;
 using EnterpriseOrderManagement.Api.Repositories.Interfaces;
@@ -78,6 +79,57 @@ public class ProductServiceTests
         repositoryMock.Verify(
             repository => repository.GetByIdAsync(
                 productId,
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task CreateAsync_TrimsName_ReturnsCreatedProduct() //Ελέγχουμε ότι το ProductService δίνει στο repository ένα Product με καθαρισμένο όνομα και σωστές τιμές
+    {
+        // Arrange
+        var repositoryMock = new Mock<IProductRepository>();
+        repositoryMock
+            .Setup(repository => repository.AddAsync(
+                It.IsAny<Product>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Product
+            {
+                Id = 15,
+                Name = "Keyboard",
+                Price = 45m,
+                Stock = 8
+            });
+        var loggerMock = new Mock<ILogger<ProductService>>();
+        var options = Options.Create(
+            new InventorySettings
+            {
+                LowStockThreshold = 5
+            });
+        var service = new ProductService(
+            repositoryMock.Object,
+            loggerMock.Object,
+            options);
+        var request = new CreateProductRequest
+        {
+            Name = "  Keyboard  ",
+            Price = 45m,
+            Stock = 8
+        };
+        // Act
+        var result = await service.CreateAsync(
+            request,
+            CancellationToken.None);
+        // Assert
+        Assert.Equal(15, result.Id);
+        Assert.Equal("Keyboard", result.Name);
+        Assert.Equal(45m, result.Price);
+        Assert.Equal(8, result.Stock);
+        repositoryMock.Verify(
+            repository => repository.AddAsync(
+                It.Is<Product>(product =>
+                    product.Name == "Keyboard"
+                    && product.Price == 45m
+                    && product.Stock == 8),
                 It.IsAny<CancellationToken>()),
             Times.Once);
     }

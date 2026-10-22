@@ -6,13 +6,14 @@ using Xunit;
 namespace EnterpriseOrderManagement.Tests;
 
 public class ProductApiIntegrationTests
-    : IClassFixture<WebApplicationFactory<Program>>
+    : IClassFixture<SqlServerTestWebApplicationFactory>
 {
     private readonly HttpClient _client;
 
     public ProductApiIntegrationTests(
-        WebApplicationFactory<Program> factory)
+        SqlServerTestWebApplicationFactory factory)
     {
+        factory.InitializeDatabase();
         _client = factory.CreateClient();
     }
 
