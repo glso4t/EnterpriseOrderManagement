@@ -47,7 +47,7 @@ public class CustomerDatabaseIntegrationTests
             secondResponse.StatusCode);
     }
 
-    [Fact]
+    [Fact]  //Παρακάμπτει εντελώς το API και δοκιμάζει να γράψει απευθείας στη βάση δεδομένων (dbContext.Customers.Add) δύο πελάτες με το ίδιο ακριβώς email
     public async Task CustomerEmailUniqueIndex_RejectsDuplicateEmail()
     {
         // Arrange

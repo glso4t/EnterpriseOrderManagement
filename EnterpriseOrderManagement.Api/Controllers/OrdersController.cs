@@ -4,9 +4,11 @@ using EnterpriseOrderManagement.Api.Dtos.Orders;
 using EnterpriseOrderManagement.Api.Services.Interfaces;
 using EnterpriseOrderManagement.Api.Services.Results;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 
 namespace EnterpriseOrderManagement.Api.Controllers;
 
+[Authorize]
 [ApiController]
 [Route("api/orders")]
 public sealed class OrdersController(
@@ -119,6 +121,7 @@ public sealed class OrdersController(
     }
 
 //CONFIRM Order
+    [Authorize(Policy = "AdminOnly")]
     [HttpPost("{id:int}/confirm")]
     [ProducesResponseType(
         typeof(OrderResponse),
@@ -138,6 +141,7 @@ public sealed class OrdersController(
     }
 
 //CANCEL Order
+    [Authorize(Policy = "AdminOnly")]
     [HttpPost("{id:int}/cancel")]
     [ProducesResponseType(
         typeof(OrderResponse),

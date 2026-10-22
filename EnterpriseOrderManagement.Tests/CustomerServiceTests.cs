@@ -33,7 +33,7 @@ public class CustomerServiceTests
         Assert.Equal(
             CustomerWriteStatus.EmailAlreadyExists,
             result.Status);
-        Assert.Null(result.Customer);
+        Assert.Null(result.Customer);   //δεν επιστρέφει customer object αφού υπήρχε πρόβλημα
         repositoryMock.Verify(
             repository => repository.AddAsync(
                 It.IsAny<Customer>(),

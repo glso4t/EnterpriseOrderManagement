@@ -14,7 +14,7 @@ public class ProductApiIntegrationTests
         SqlServerTestWebApplicationFactory factory)
     {
         factory.InitializeDatabase();
-        _client = factory.CreateClient();
+        _client = factory.CreateClient();   //δημιουργεί έναν HTTP client έτοιμο να στείλει αιτήματα στο test API
     }
 
     [Fact]
@@ -64,4 +64,49 @@ public class ProductApiIntegrationTests
             HttpStatusCode.BadRequest,
             response.StatusCode);
     }
+
+    [Fact]
+    public async Task GetProducts_WithoutAuthentication_ReturnsUnauthorized()
+    {
+        //Arrange
+        using var request = new HttpRequestMessage(
+            HttpMethod.Get,
+            "/api/products");
+        request.Headers.Add(
+            "X-Test-Unauthenticated",
+            "true");
+        //Act
+        var response = await _client.SendAsync(request);
+        //Assert
+        Assert.Equal(
+            HttpStatusCode.Unauthorized,
+            response.StatusCode);
+    }
+
+    [Fact]
+    public async Task PostProduct_AsUser_ReturnsForbidden()
+    {
+        //Arrange
+        using var request = new HttpRequestMessage(
+            HttpMethod.Post,
+            "/api/products")
+        {
+            Content = JsonContent.Create(new
+            {
+                name = "Test Product",
+                price = 10m,
+                stock = 5
+            })
+        };
+        request.Headers.Add(
+            "X-Test-Role",
+            "User");
+        //Act
+        var response = await _client.SendAsync(request);
+        //Assert
+        Assert.Equal(
+            HttpStatusCode.Forbidden,
+            response.StatusCode);
+    }
+
 }

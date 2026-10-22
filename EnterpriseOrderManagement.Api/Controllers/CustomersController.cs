@@ -2,9 +2,11 @@ using EnterpriseOrderManagement.Api.Dtos.Customers;
 using EnterpriseOrderManagement.Api.Services.Interfaces;
 using EnterpriseOrderManagement.Api.Services.Results;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 
 namespace EnterpriseOrderManagement.Api.Controllers;
 
+[Authorize]
 [ApiController]
 [Route("api/customers")]
 public sealed class CustomersController(
@@ -111,6 +113,7 @@ public sealed class CustomersController(
     }
 
 //DELETE
+    [Authorize(Policy = "AdminOnly")]
     [HttpDelete("{id:int}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]

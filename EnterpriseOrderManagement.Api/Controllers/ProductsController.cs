@@ -2,9 +2,11 @@ using EnterpriseOrderManagement.Api.Models;
 using EnterpriseOrderManagement.Api.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using EnterpriseOrderManagement.Api.Dtos.Products;
+using Microsoft.AspNetCore.Authorization;
 
 namespace EnterpriseOrderManagement.Api.Controllers;
 
+[Authorize]
 [ApiController]
 [Route("api/products")]
 public class ProductsController(
@@ -52,6 +54,7 @@ public class ProductsController(
     }
 
 //POST
+    [Authorize(Policy = "AdminOnly")]
     [HttpPost]
     [ProducesResponseType(
         typeof(ProductResponse),
@@ -71,6 +74,7 @@ public class ProductsController(
     }
 
 //PUT
+    [Authorize(Policy = "AdminOnly")]
     [HttpPut("{id:int}")]
     [ProducesResponseType(
         typeof(ProductResponse),
@@ -94,6 +98,7 @@ public class ProductsController(
     }
 
 //PATCH
+    [Authorize(Policy = "AdminOnly")]
     [HttpPatch("{id:int}")]
     [ProducesResponseType(typeof(ProductResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -115,6 +120,7 @@ public class ProductsController(
     }
 
 //DELETE
+    [Authorize(Policy = "AdminOnly")]
     [HttpDelete("{id:int}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]

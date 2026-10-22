@@ -15,6 +15,18 @@ builder.Services.AddControllers();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 
+// Authentication: Αναγνώριση του χρήστη μέσω JWT Bearer
+builder.Services
+    .AddAuthentication("Bearer")
+    .AddJwtBearer();
+
+// Authorization: Έλεγχος δικαιωμάτων
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("AdminOnly", policy =>
+        policy.RequireRole("Admin"));
+});
+
 builder.Services.AddProblemDetails();
 
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
@@ -50,7 +62,8 @@ builder.Services.AddScoped<
     >();
 
 builder.Services.AddScoped<
-    IOrderRepository, OrderRepository
+    IOrderRepository, 
+    OrderRepository
     >();
 
 builder.Services.AddScoped<
@@ -72,6 +85,10 @@ app.UseStatusCodePages();
 
 app.UseHttpsRedirection();
 
+// Πρώτα αναγνωρίζουμε τον χρήστη
+app.UseAuthentication();
+
+// και μετά ελέγχουμε τα δικαιώματά του
 app.UseAuthorization();
 
 app.MapControllers();

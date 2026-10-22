@@ -18,7 +18,7 @@ public class OrderLifecycleIntegrationTests
         _client = factory.CreateClient();
     }
 
-    [Fact]
+    [Fact]  //πλήρες End-to-End (E2E) test
     public async Task CreateConfirmCancelOrder_UpdatesAndRestoresStock()
     {
         // CREATE CUSTOMER
