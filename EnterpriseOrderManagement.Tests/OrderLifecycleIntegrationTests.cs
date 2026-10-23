@@ -23,7 +23,7 @@ public class OrderLifecycleIntegrationTests
     {
         // CREATE CUSTOMER
         var customerResponse = await _client.PostAsJsonAsync(
-            "/api/customers",
+            "/api/v1/customers",
             new
             {
                 name = "Integration Test Customer",
@@ -38,12 +38,12 @@ public class OrderLifecycleIntegrationTests
         // CHECKS INITIAL STOCK
         var initialProduct = await _client
             .GetFromJsonAsync<ProductResponse>(
-                "/api/products/1");
+                "/api/v1/products/1");
         Assert.NotNull(initialProduct);
         Assert.Equal(10, initialProduct.Stock);
         // CREATES ORDER FOR TWO LAPTOPS
         var orderResponse = await _client.PostAsJsonAsync(
-            "/api/orders",
+            "/api/v1/orders",
             new
             {
                 customerId = customer.Id,
@@ -71,12 +71,12 @@ public class OrderLifecycleIntegrationTests
         // STOCK MUST DECREASE FROM 10 TO 8
         var productAfterOrder = await _client
             .GetFromJsonAsync<ProductResponse>(
-                "/api/products/1");
+                "/api/v1/products/1");
         Assert.NotNull(productAfterOrder);
         Assert.Equal(8, productAfterOrder.Stock);
         // CONFIRM ORDER
         var confirmResponse = await _client.PostAsync(
-            $"/api/orders/{order.Id}/confirm",
+            $"/api/v1/orders/{order.Id}/confirm",
             content: null);
         Assert.Equal(
             HttpStatusCode.OK,
@@ -87,7 +87,7 @@ public class OrderLifecycleIntegrationTests
         Assert.Equal("Confirmed", confirmedOrder.Status);
         // CANCEL ORDER
         var cancelResponse = await _client.PostAsync(
-            $"/api/orders/{order.Id}/cancel",
+            $"/api/v1/orders/{order.Id}/cancel",
             content: null);
         Assert.Equal(
             HttpStatusCode.OK,
@@ -99,13 +99,13 @@ public class OrderLifecycleIntegrationTests
         // STOCK MUST RETURN TO 10
         var productAfterCancellation = await _client
             .GetFromJsonAsync<ProductResponse>(
-                "/api/products/1");
+                "/api/v1/products/1");
         Assert.NotNull(productAfterCancellation);
         Assert.Equal(10, productAfterCancellation.Stock);
         // VERIFY THE ORDER IS PERSISTED
         var persistedOrder = await _client
             .GetFromJsonAsync<OrderResponse>(
-                $"/api/orders/{order.Id}");
+                $"/api/v1/orders/{order.Id}");
         Assert.NotNull(persistedOrder);
         Assert.Equal("Cancelled", persistedOrder.Status);
         Assert.Equal(1799.98m, persistedOrder.TotalAmount);

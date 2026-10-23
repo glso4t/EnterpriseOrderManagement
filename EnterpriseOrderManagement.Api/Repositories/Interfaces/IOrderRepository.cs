@@ -1,5 +1,6 @@
 using EnterpriseOrderManagement.Api.Models;
 using EnterpriseOrderManagement.Api.Dtos.Orders;
+using EnterpriseOrderManagement.Api.Services.Queries;
 
 namespace EnterpriseOrderManagement.Api.Repositories.Interfaces;
 
@@ -20,6 +21,6 @@ public interface IOrderRepository
         CancellationToken cancellationToken = default);
 
     Task<(IReadOnlyList<Order> Items, int TotalCount)> GetPagedAsync(   //η μέθοδος επιστρέφει τη λίστα των παραγγελιών της συγκεκριμένης σελίδας και το συνολικό πλήθος των παραγγελιών που ταιριάζουν στα φίλτρα
-        OrderQueryParameters parameters,
+        OrderQuery query,
         CancellationToken cancellationToken = default);
 }   

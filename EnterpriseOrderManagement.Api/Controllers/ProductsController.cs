@@ -8,7 +8,7 @@ namespace EnterpriseOrderManagement.Api.Controllers;
 
 [Authorize]
 [ApiController]
-[Route("api/products")]
+[Route("api/v1/products")]
 public class ProductsController(
     IProductService productService)
     : ControllerBase

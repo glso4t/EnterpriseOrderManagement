@@ -3,14 +3,16 @@ using EnterpriseOrderManagement.Api.Dtos.Common;
 using EnterpriseOrderManagement.Api.Dtos.Orders;
 using EnterpriseOrderManagement.Api.Services.Interfaces;
 using EnterpriseOrderManagement.Api.Services.Results;
+using EnterpriseOrderManagement.Api.Services.Queries;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
+
 
 namespace EnterpriseOrderManagement.Api.Controllers;
 
 [Authorize]
 [ApiController]
-[Route("api/orders")]
+[Route("api/v1/orders")]
 public sealed class OrdersController(
     IOrderService orderService) : ControllerBase
 {
@@ -54,11 +56,22 @@ public sealed class OrdersController(
                 Detail = "FromDate must be earlier than or equal to ToDate."
             });
         }
+        var query = new OrderQuery  //μετατροπή σε εσωτερικό query object
+        {
+            Page = parameters.Page,
+            PageSize = parameters.PageSize,
+            CustomerId = parameters.CustomerId,
+            Status = parameters.Status,
+            FromDate = parameters.FromDate,
+            ToDate = parameters.ToDate,
+            SortBy = parameters.SortBy,
+            SortDirection = parameters.SortDirection
+        };
         var result = await orderService.GetPagedAsync(
-            parameters,
+            query,
             cancellationToken);
-        return Ok(result);
-    }
+                return Ok(result);
+            }
 
 //POST
     [HttpPost]

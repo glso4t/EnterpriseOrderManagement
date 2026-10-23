@@ -8,7 +8,7 @@ namespace EnterpriseOrderManagement.Api.Controllers;
 
 [Authorize]
 [ApiController]
-[Route("api/customers")]
+[Route("api/v1/customers")]
 public sealed class CustomersController(
     ICustomerService customerService) : ControllerBase
 {

@@ -33,10 +33,10 @@ public class CustomerDatabaseIntegrationTests
         };
         // Act
         var firstResponse = await _client.PostAsJsonAsync(
-            "/api/customers",
+            "/api/v1/customers",
             request);
         var secondResponse = await _client.PostAsJsonAsync(
-            "/api/customers",
+            "/api/v1/customers",
             request);
         // Assert
         Assert.Equal(

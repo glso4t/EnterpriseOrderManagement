@@ -29,7 +29,7 @@ public class ProductApiIntegrationTests
         };
         // Act
         var response = await _client.PostAsJsonAsync(
-            "/api/products",
+            "/api/v1/products",
             request);
         // Assert
         Assert.Equal(
@@ -41,7 +41,7 @@ public class ProductApiIntegrationTests
     public async Task GetOrders_WithInvalidPagination_ReturnsBadRequest()
     {
         // Arrange
-        const string url = "/api/orders?page=0&pageSize=500";
+        const string url = "/api/v1/orders?page=0&pageSize=500";
         // Act
         var response = await _client.GetAsync(url);
         // Assert
@@ -55,7 +55,7 @@ public class ProductApiIntegrationTests
     {
         // Arrange
         const string url =
-            "/api/orders?fromDate=2026-12-31T00%3A00%3A00"
+            "/api/v1/orders?fromDate=2026-12-31T00%3A00%3A00"
             + "&toDate=2026-01-01T00%3A00%3A00";
         // Act
         var response = await _client.GetAsync(url);
@@ -71,7 +71,7 @@ public class ProductApiIntegrationTests
         //Arrange
         using var request = new HttpRequestMessage(
             HttpMethod.Get,
-            "/api/products");
+            "/api/v1/products");
         request.Headers.Add(
             "X-Test-Unauthenticated",
             "true");
@@ -89,7 +89,7 @@ public class ProductApiIntegrationTests
         //Arrange
         using var request = new HttpRequestMessage(
             HttpMethod.Post,
-            "/api/products")
+            "/api/v1/products")
         {
             Content = JsonContent.Create(new
             {
@@ -106,6 +106,15 @@ public class ProductApiIntegrationTests
         //Assert
         Assert.Equal(
             HttpStatusCode.Forbidden,
+            response.StatusCode);
+    }
+
+    [Fact]
+    public async Task UnversionedProductsRoute_ReturnsNotFound()
+    {
+        var response = await _client.GetAsync("/api/products");
+        Assert.Equal(
+            HttpStatusCode.NotFound,
             response.StatusCode);
     }
 

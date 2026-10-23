@@ -2,6 +2,7 @@ using EnterpriseOrderManagement.Api.Data;
 using EnterpriseOrderManagement.Api.Models;
 using EnterpriseOrderManagement.Api.Dtos.Orders;
 using EnterpriseOrderManagement.Api.Repositories.Interfaces;
+using EnterpriseOrderManagement.Api.Services.Queries;
 using Microsoft.EntityFrameworkCore;
 
 namespace EnterpriseOrderManagement.Api.Repositories;
@@ -70,59 +71,59 @@ public sealed class OrderRepository(
     }
 
     public async Task<(IReadOnlyList<Order> Items, int TotalCount)> GetPagedAsync(
-            OrderQueryParameters parameters,
+            OrderQuery query,
             CancellationToken cancellationToken = default)
     {
-        IQueryable<Order> query = dbContext.Orders
+        IQueryable<Order> ordersQuery = dbContext.Orders
             .AsNoTracking()
             .Include(order => order.Items)
                 .ThenInclude(item => item.Product);
         //Ελέγχει αν ο χρήστης έδωσε φίλτρα,
         //αν κάποιο φίλτρο έχει τιμή, προσθέτει αυτόματα το αντίστοιχο WHERE στο ερώτημα της SQL
-        if (parameters.CustomerId.HasValue)
+        if (query.CustomerId.HasValue)
         {
-            query = query.Where(
-                order => order.CustomerId == parameters.CustomerId.Value);
+            ordersQuery = ordersQuery.Where(
+                order => order.CustomerId == query.CustomerId.Value);
         }
-        if (parameters.Status.HasValue)
+        if (query.Status.HasValue)
         {
-            query = query.Where(
-                order => order.Status == parameters.Status.Value);
+            ordersQuery = ordersQuery.Where(
+                order => order.Status == query.Status.Value);
         }
-        if (parameters.FromDate.HasValue)
+        if (query.FromDate.HasValue)
         {
-            query = query.Where(
-                order => order.OrderDate >= parameters.FromDate.Value);
+            ordersQuery = ordersQuery.Where(
+                order => order.OrderDate >= query.FromDate.Value);
         }
-        if (parameters.ToDate.HasValue)
+        if (query.ToDate.HasValue)
         {
-            query = query.Where(
-                order => order.OrderDate <= parameters.ToDate.Value);
+            ordersQuery = ordersQuery.Where(
+                order => order.OrderDate <= query.ToDate.Value);
         }
-        var totalCount = await query.CountAsync(cancellationToken);//μετράει πόσες συνολικά παραγγελίες ταιριάζουν με τα φίλτρα που βάλαμε (χωρίς να επηρεάζεται από τη σελιδοποίηση)
+        var totalCount = await ordersQuery.CountAsync(cancellationToken);//μετράει πόσες συνολικά παραγγελίες ταιριάζουν με τα φίλτρα που βάλαμε (χωρίς να επηρεάζεται από τη σελιδοποίηση)
         var descending = string.Equals(
-            parameters.SortDirection,
+            query.SortDirection,
             "desc",
             StringComparison.OrdinalIgnoreCase);
         //Δυναμική Ταξινόμηση (Sorting)
         IOrderedQueryable<Order> orderedQuery =
-            parameters.SortBy.ToLowerInvariant() switch //πώς θέλει o χρήστης να sort τις παραγγελίες
+            query.SortBy.ToLowerInvariant() switch //πώς θέλει o χρήστης να sort τις παραγγελίες
             {
                 "id" => descending
-                    ? query.OrderByDescending(order => order.Id)
-                    : query.OrderBy(order => order.Id),
+                    ? ordersQuery.OrderByDescending(order => order.Id)
+                    : ordersQuery.OrderBy(order => order.Id),
                 "customerid" => descending
-                    ? query.OrderByDescending(order => order.CustomerId)
-                    : query.OrderBy(order => order.CustomerId),
+                    ? ordersQuery.OrderByDescending(order => order.CustomerId)
+                    : ordersQuery.OrderBy(order => order.CustomerId),
                 _ => descending //όλα τα άλλα
-                    ? query.OrderByDescending(order => order.OrderDate) //προεπιλογή το OrderDate
-                    : query.OrderBy(order => order.OrderDate)
+                    ? ordersQuery.OrderByDescending(order => order.OrderDate) //προεπιλογή το OrderDate
+                    : ordersQuery.OrderBy(order => order.OrderDate)
             };
         orderedQuery = orderedQuery.ThenByDescending(   //αν βρει orders με την ίδια ημερομηνία,
             order => order.Id);                         // sort βάσει του id τους
         var items = await orderedQuery
-            .Skip((parameters.Page - 1) * parameters.PageSize)
-            .Take(parameters.PageSize)
+            .Skip((query.Page - 1) * query.PageSize)
+            .Take(query.PageSize)
             .ToListAsync(cancellationToken);
         return (items, totalCount);
     }

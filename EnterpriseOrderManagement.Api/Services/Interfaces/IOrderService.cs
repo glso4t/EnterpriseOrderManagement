@@ -2,6 +2,7 @@ using EnterpriseOrderManagement.Api.Dtos.Orders;
 using EnterpriseOrderManagement.Api.Services.Results;
 using EnterpriseOrderManagement.Api.Dtos.Common;
 using EnterpriseOrderManagement.Api.Dtos.Orders;
+using EnterpriseOrderManagement.Api.Services.Queries;
 
 namespace EnterpriseOrderManagement.Api.Services.Interfaces;
 
@@ -24,6 +25,6 @@ public interface IOrderService
         CancellationToken cancellationToken = default);
 
     Task<PagedResponse<OrderResponse>> GetPagedAsync(
-        OrderQueryParameters parameters,
+        OrderQuery query,
         CancellationToken cancellationToken = default);
 }
