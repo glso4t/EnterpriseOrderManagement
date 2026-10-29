@@ -1,3 +1,4 @@
+import { useState } from "react";
 import "./App.css";
 
 import ProductCard from "./components/ProductCard";
@@ -42,6 +43,62 @@ const initialProducts: Product[] = [
 ];
 
 function App() {
+
+    // State
+    const [products, setProducts] =
+        useState<Product[]>(initialProducts);
+
+    const [searchTerm, setSearchTerm] = useState("");
+
+    const [showInStockOnly, setShowInStockOnly] =
+        useState(false);
+
+    // Event handler: increase stock for a product
+    function handleRestock(productId: number): void {
+        setProducts((currentProducts) =>
+            currentProducts.map((product) =>
+                product.id === productId
+                    ? {
+                        ...product,
+                        stock: product.stock + 1
+                    }
+                    : product
+            )
+        );
+    }
+
+        // Event handler: decrease stock for a product
+    function handleRemoveStock(productId: number): void {
+        setProducts((currentProducts) =>
+            currentProducts.map((product) =>
+                product.id === productId && product.stock > 0
+                    ? {
+                        ...product,
+                        stock: product.stock - 1
+                    }
+                    : product
+            )
+        );
+    }
+
+    // Filter the products according to the current state
+    const normalizedSearch = searchTerm.trim().toLowerCase();   //Αρχικά καθαρίζουμε τα κενά στις άκρες του κειμένου και μετατρέπουμε το κείμενο σε πεζά γράμματα. Έτσι, η αναζήτηση LAPTOP, Laptop ή laptop αντιμετωπίζεται με τον ίδιο τρόπο
+
+    const filteredProducts = products.filter((product) => {
+        const matchesSearch =   //ελέγχει αν το όνομα ή η κατηγορία περιέχει το κείμενο αναζήτησης
+            product.name.toLowerCase().includes(normalizedSearch) ||
+            product.category.toLowerCase().includes(normalizedSearch);
+
+        const matchesStock =    //επιτρέπει όλα τα προϊόντα όταν το φίλτρο είναι απενεργοποιημένο. Όταν ενεργοποιείται, επιτρέπει μόνο όσα ειναι in stock και έχουν stock > 0
+            !showInStockOnly || product.stock > 0;
+
+        return matchesSearch && matchesStock;   //Ένα προϊόν εμφανίζεται μόνο όταν ικανοποιεί και τα 2 φίλτρα
+    });
+
+    const inStockCount = products.filter(
+        (product) => product.stock > 0
+    ).length;
+
     return (
         <div className="app-shell">
             <header className="topbar">
@@ -70,15 +127,15 @@ function App() {
                         <h1>Product Management</h1>
 
                         <p className="intro-description">
-                            View the products in your catalog and
-                            check their current stock levels.
+                            Search products, filter the catalog,
+                            and update stock levels.
                         </p>
                     </div>
 
                     <div className="summary-card">
                         <span>Catalog products</span>
                         <strong>{initialProducts.length}</strong>
-                        <small>Sample data</small>
+                        <small>{inStockCount} with stock</small>
                     </div>
                 </section>
 
@@ -89,23 +146,80 @@ function App() {
                             <h2 id="products-heading">Products</h2>
 
                             <p>
-                                Products currently displayed in the catalog.
+                                Manage the products in your catalog.
                             </p>
                         </div>
 
                         <span className="count-pill">
-                            {initialProducts.length} items
+                            {filteredProducts.length} shown
                         </span>
                     </div>
 
-                    <div className="product-grid">
-                        {initialProducts.map((product) => (
-                            <ProductCard
-                                key={product.id}
-                                product={product}
+                    <div className="product-controls">
+                        <label
+                            className="search-field"
+                            htmlFor="product-search"
+                        >
+                            <span>Search products</span>
+
+                            <input
+                                id="product-search"
+                                type="text"
+                                value={searchTerm}
+                                onChange={(event) =>
+                                    setSearchTerm(event.target.value)
+                                }
+                                placeholder="Search by name or category..."
                             />
-                        ))}
+                            <button
+                                className="filter-button"
+                                type="button"
+                                onClick={() => setSearchTerm("")}
+                            >
+                                Clear search
+                            </button>
+                        </label>
+
+                        <button
+                            className="filter-button"
+                            type="button"
+                            aria-pressed={showInStockOnly}
+                            onClick={() =>
+                                setShowInStockOnly((currentValue) => !currentValue) //Η συνάρτηση ενημέρωσης παίρνει την τρέχουσα τιμή και επιστρέφει την αντίθετή της
+                            }
+                        >
+                            {showInStockOnly
+                                ? "Show all products"
+                                : "Show in-stock only"}
+                        </button>
                     </div>
+
+                    {showInStockOnly && (
+                        <p className="filter-message">
+                            Showing products that have available stock.
+                        </p>
+                    )}
+
+                    {filteredProducts.length === 0 ? (
+                        <div className="empty-state">
+                            <h3>No products found</h3>
+
+                            <p>
+                                Try another search term or change the stock filter.
+                            </p>
+                        </div>
+                    ) : (
+                        <div className="product-grid">
+                            {filteredProducts.map((product) => (
+                                <ProductCard
+                                    key={product.id}
+                                    product={product}
+                                    onRestock={handleRestock}
+                                    onRemoveStock={handleRemoveStock}
+                                />
+                            ))}
+                        </div>
+                    )}
                 </section>
             </main>
 

@@ -2,10 +2,14 @@ import type { Product } from "../types";
 
 interface ProductCardProps {
     product: Product;
+    onRestock: (productId: number) => void;
+    onRemoveStock: (productId: number) => void;
 }
 
 export default function ProductCard({
-    product
+    product,
+    onRestock,
+    onRemoveStock
 }: ProductCardProps) {
     let stockLabel: string;
     let stockClass: string;
@@ -53,6 +57,20 @@ export default function ProductCard({
                     <span>units</span>
                 </div>
             </div>
+            <button
+                className="restock-button"
+                onClick={() => onRestock(product.id)}
+            >
+                Restock +1
+            </button>
+            <button
+                className="restock-button"
+                type="button"
+                disabled={product.stock === 0}
+                onClick={() => onRemoveStock(product.id)}
+            >
+                Remove -1
+            </button>
         </article>
     );
 }
