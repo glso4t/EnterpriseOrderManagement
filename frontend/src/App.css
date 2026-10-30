@@ -385,8 +385,9 @@
 }
 
 .restock-button {
-    width: 100%;
+    width: 15%;
     margin-top: 20px;
+    margin-right: 10px;
 }
 
 .filter-message {
@@ -532,4 +533,48 @@
     .product-form-grid {
         grid-template-columns: 1fr;
     }
+}
+
+.connection-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: #475569;
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-left: auto;
+}
+
+.connection-dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+}
+
+.connection-dot.online {
+    background: #16a34a;
+}
+
+.connection-dot.offline {
+    background: #dc2626;
+}
+
+.catalog-message {
+    padding: 2rem;
+    color: #64748b;
+    text-align: center;
+    font-weight: 500;
+}
+
+.catalog-error {
+    margin: 1rem 0;
+    padding: 1.25rem;
+    border: 1px solid #fecaca;
+    border-radius: 0.75rem;
+    background: #fef2f2;
+    color: #991b1b;
+}
+
+.catalog-error h3 {
+    margin-top: 0;
 }

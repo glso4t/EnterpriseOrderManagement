@@ -1,58 +1,95 @@
-import { useState } from "react";
+import { getProducts } from "./services/productService";
+import { useEffect, useState } from "react";
 import "./App.css";
 
 import ProductCard from "./components/ProductCard";
 import ProductForm from "./components/ProductForm";
 import type { Product } from "./types";
 
-const initialProducts: Product[] = [
-    {
-        id: 1,
-        name: "Laptop",
-        price: 899.99,
-        stock: 5,
-        category: "Electronics"
-    },
-    {
-        id: 2,
-        name: "Keyboard",
-        price: 49.99,
-        stock: 12,
-        category: "Accessories"
-    },
-    {
-        id: 3,
-        name: "Mouse",
-        price: 19.99,
-        stock: 0,
-        category: "Accessories"
-    },
-    {
-        id: 4,
-        name: "Monitor",
-        price: 199.99,
-        stock: 2,
-        category: "Electronics"
-    },
-    {
-    id: 5,
-    name: "Webcam",
-    price: 69.99,
-    stock: 4,
-    category: "Accessories"
-    }
-];
+
 
 function App() {
 
     // State
     const [products, setProducts] =
-        useState<Product[]>(initialProducts);
+        useState<Product[]>([]);
 
-    const [searchTerm, setSearchTerm] = useState("");
+    const [isLoading, setIsLoading] = 
+        useState(true); 
+
+    const [loadError, setLoadError] = 
+        useState<string | null>(null);  
+
+    const [searchTerm, setSearchTerm] = 
+        useState("");
 
     const [showInStockOnly, setShowInStockOnly] =
         useState(false);
+
+    const [isOnline, setIsOnline] = useState(true);
+
+    //Effect: update the document title whenever the number of products changes
+    useEffect(() => {
+        document.title = `Inventory Dashboard (${products.length})`;
+    }, [products.length]);
+
+    //Effect: update the online status whenever the browser goes online or offline
+    useEffect(() => {
+        function updateOnlineStatus(): void {
+            setIsOnline(navigator.onLine);
+        }
+        updateOnlineStatus();
+        window.addEventListener(    //Όταν επανέλθει η σύνδεση, εκτελείται το updateOnlineStatus
+            "online",
+            updateOnlineStatus
+        );
+        window.addEventListener(    //Όταν χαθεί η σύνδεση, εκτελείται το updateOnlineStatus
+            "offline",
+            updateOnlineStatus
+        );
+        return () => {  //Cleanup
+            window.removeEventListener(
+                "online",
+                updateOnlineStatus
+            );
+            window.removeEventListener(
+                "offline",
+                updateOnlineStatus
+            );
+        };
+    }, []);
+
+    // Effect: load products from the ASP.NET Core API
+    useEffect(() => {
+        let ignore = false;
+        async function loadProducts(): Promise<void> {
+            try {
+                setIsLoading(true);
+                setLoadError(null);
+                const loadedProducts = await getProducts();
+                if (!ignore) {
+                    setProducts(loadedProducts);
+                }
+            } catch (error: unknown) {
+                if (!ignore) {
+                    const message =
+                        error instanceof Error
+                            ? error.message
+                            : "An unexpected error occurred.";
+                    setLoadError(message);
+                }
+            } finally {
+                if (!ignore) {
+                    setIsLoading(false);
+                }
+            }
+        }
+        loadProducts();
+        return () => {
+            ignore = true;
+        };
+    }, []);
+
 
     // Event handler: increase stock for a product
     function handleRestock(productId: number): void {
@@ -93,7 +130,6 @@ function App() {
                         Math.max(maxId, product.id),
                     0
                 ) + 1;
-
             return [
                 ...currentProducts,
                 {
@@ -134,6 +170,18 @@ function App() {
                     </span>
                 </a>
 
+                <div className="connection-status" aria-live="polite">
+                    <span
+                        className={`connection-dot ${
+                            isOnline ? "online" : "offline"
+                        }`}
+                    />
+
+                    <span>
+                        {isOnline ? "Online" : "Offline"}
+                    </span>
+                </div>
+
                 <div className="environment-label">
                     <span className="status-dot"></span>
                     React frontend demo
@@ -157,11 +205,11 @@ function App() {
 
                     <div className="summary-card">
                         <span>Catalog products</span>
-                        <strong>{initialProducts.length}</strong>
+                        <strong>{products.length}</strong>
                         <small>{inStockCount} with stock</small>
                     </div>
                 </section>
-                    <ProductForm onAddProduct={handleAddProduct} />
+                <ProductForm onAddProduct={handleAddProduct} />
                 <section
                     className="catalog-section" aria-labelledby="products-heading">
                     <div className="section-heading">
@@ -223,7 +271,16 @@ function App() {
                         </p>
                     )}
 
-                    {filteredProducts.length === 0 ? (
+                    {isLoading ? (
+                        <p className="catalog-message">
+                            Loading products...
+                        </p>
+                    ) : loadError ? (
+                        <div className="catalog-error" role="alert">
+                            <h3>Could not load products</h3>
+                            <p>{loadError}</p>
+                        </div>
+                    ) : filteredProducts.length === 0 ? (
                         <div className="empty-state">
                             <h3>No products found</h3>
 
