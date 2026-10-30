@@ -2,6 +2,7 @@ import { useState } from "react";
 import "./App.css";
 
 import ProductCard from "./components/ProductCard";
+import ProductForm from "./components/ProductForm";
 import type { Product } from "./types";
 
 const initialProducts: Product[] = [
@@ -67,7 +68,7 @@ function App() {
         );
     }
 
-        // Event handler: decrease stock for a product
+    // Event handler: decrease stock for a product
     function handleRemoveStock(productId: number): void {
         setProducts((currentProducts) =>
             currentProducts.map((product) =>
@@ -79,6 +80,28 @@ function App() {
                     : product
             )
         );
+    }
+
+    // Event handler: add a new product
+    function handleAddProduct(
+        productData: Omit<Product, "id">
+    ): void {
+        setProducts((currentProducts) => {
+            const nextId =
+                currentProducts.reduce(
+                    (maxId, product) =>
+                        Math.max(maxId, product.id),
+                    0
+                ) + 1;
+
+            return [
+                ...currentProducts,
+                {
+                    id: nextId,
+                    ...productData
+                }
+            ];
+        });
     }
 
     // Filter the products according to the current state
@@ -138,7 +161,7 @@ function App() {
                         <small>{inStockCount} with stock</small>
                     </div>
                 </section>
-
+                    <ProductForm onAddProduct={handleAddProduct} />
                 <section
                     className="catalog-section" aria-labelledby="products-heading">
                     <div className="section-heading">
