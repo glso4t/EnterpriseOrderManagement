@@ -12,3 +12,9 @@ export interface ProductApiResponse {
     price: number;
     stock: number;
 }
+
+export interface CreateProductRequest {
+    name: string;
+    price: number;
+    stock: number;
+}

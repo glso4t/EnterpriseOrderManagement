@@ -578,3 +578,8 @@
 .catalog-error h3 {
     margin-top: 0;
 }
+
+.submit-button:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+}

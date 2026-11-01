@@ -1,11 +1,13 @@
-import { getProducts } from "./services/productService";
+import { createProduct, getProducts } from "./services/productService";
 import { useEffect, useState } from "react";
 import "./App.css";
 
 import ProductCard from "./components/ProductCard";
 import ProductForm from "./components/ProductForm";
-import type { Product } from "./types";
-
+import type {
+    CreateProductRequest,
+    Product
+} from "./types";
 
 
 function App() {
@@ -119,25 +121,15 @@ function App() {
         );
     }
 
-    // Event handler: add a new product
-    function handleAddProduct(
-        productData: Omit<Product, "id">
-    ): void {
-        setProducts((currentProducts) => {
-            const nextId =
-                currentProducts.reduce(
-                    (maxId, product) =>
-                        Math.max(maxId, product.id),
-                    0
-                ) + 1;
-            return [
-                ...currentProducts,
-                {
-                    id: nextId,
-                    ...productData
-                }
-            ];
-        });
+    // Event handler: add a new product 
+    async function handleAddProduct(
+        productData: CreateProductRequest
+    ): Promise<void> {
+        const createdProduct = await createProduct(productData);
+        setProducts((currentProducts) => [
+            ...currentProducts,
+            createdProduct
+        ]);
     }
 
     // Filter the products according to the current state

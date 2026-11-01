@@ -1,88 +1,96 @@
 import { useState, type FormEvent } from "react";
-import type { Product } from "../types";
+import type { CreateProductRequest } from "../types";
 
 interface ProductFormProps {
-    onAddProduct: (productData: Omit<Product, "id">) => void;
+    onAddProduct: (
+        productData: CreateProductRequest
+    ) => Promise<void>;
 }
 
 export default function ProductForm({
     onAddProduct
 }: ProductFormProps) {
     const [name, setName] = useState("");
-    const [category, setCategory] = useState("");
     const [price, setPrice] = useState("");
     const [stock, setStock] = useState("0");
 
     const [errors, setErrors] = useState<string[]>([]);
+    const [apiError, setApiError] = useState("");
+
     const [successMessage, setSuccessMessage] = useState("");
 
-    function handleSubmit(
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    async function handleSubmit(
         event: FormEvent<HTMLFormElement>
-    ): void {
+    ): Promise<void> {
         event.preventDefault();
-
         const trimmedName = name.trim();
-        const trimmedCategory = category.trim();
-
         const numericPrice = Number(price);
         const numericStock = Number(stock);
-
         const validationErrors: string[] = [];
 
+        //name
         if (trimmedName === "") {
             validationErrors.push(
                 "Product name is required."
             );
-        }
-
-        if (trimmedCategory === "") {
+        } else if (trimmedName.length > 200) {
             validationErrors.push(
-                "Category is required."
+                "Product name cannot exceed 200 characters."
             );
-        }
-
+        }//price
         if (
             price.trim() === "" ||
             !Number.isFinite(numericPrice) ||
-            numericPrice <= 0
+            numericPrice < 0.01 ||
+            numericPrice > 999999.99
         ) {
             validationErrors.push(
-                "Price must be a valid number greater than 0."
+                "Price must be between 0.01 and 999999.99."
             );
-        }
-
+        }//stock
         if (
             stock.trim() === "" ||
             !Number.isInteger(numericStock) ||
-            numericStock < 0
+            numericStock < 0 ||
+            numericStock > 2147483647
         ) {
             validationErrors.push(
                 "Stock must be a non-negative integer."
             );
         }
-
         if (validationErrors.length > 0) {
             setErrors(validationErrors);
+            setApiError("");
             setSuccessMessage("");
             return;
         }
-
-        onAddProduct({
-            name: trimmedName,
-            category: trimmedCategory,
-            price: numericPrice,
-            stock: numericStock
-        });
-
-        setName("");
-        setCategory("");
-        setPrice("");
-        setStock("0");
-
-        setErrors([]);
-        setSuccessMessage(
-            `${trimmedName} was added successfully.`
-        );
+        try {
+            setIsSubmitting(true);
+            setErrors([]);
+            setApiError("");
+            setSuccessMessage("");
+            await onAddProduct({
+                name: trimmedName,
+                price: numericPrice,
+                stock: numericStock
+            });
+            setName("");
+            setPrice("");
+            setStock("0");
+            setSuccessMessage(
+                `${trimmedName} was created successfully.`
+            );
+        } catch (error: unknown) {
+            const message =
+                error instanceof Error
+                    ? error.message
+                    : "An unexpected error occurred.";
+            setApiError(message);
+        } finally {
+            setIsSubmitting(false);
+        }
     }
 
     return (
@@ -103,7 +111,6 @@ export default function ProductForm({
                         <label htmlFor="product-name">
                             Product name
                         </label>
-
                         <input
                             id="product-name"
                             name="name"
@@ -117,32 +124,15 @@ export default function ProductForm({
                     </div>
 
                     <div className="form-field">
-                        <label htmlFor="product-category">
-                            Category
-                        </label>
-
-                        <input
-                            id="product-category"
-                            name="category"
-                            type="text"
-                            value={category}
-                            onChange={(event) =>
-                                setCategory(event.target.value)
-                            }
-                            required
-                        />
-                    </div>
-
-                    <div className="form-field">
                         <label htmlFor="product-price">
                             Price (€)
                         </label>
-
                         <input
                             id="product-price"
                             name="price"
                             type="number"
                             min="0.01"
+                            max="999999.99"
                             step="0.01"
                             value={price}
                             onChange={(event) =>
@@ -156,12 +146,12 @@ export default function ProductForm({
                         <label htmlFor="product-stock">
                             Stock
                         </label>
-
                         <input
                             id="product-stock"
                             name="stock"
                             type="number"
                             min="0"
+                            max="2147483647"
                             step="1"
                             value={stock}
                             onChange={(event) =>
@@ -174,11 +164,13 @@ export default function ProductForm({
 
                 <button
                     className="submit-button"
-                    type="submit"
+                    type="submit"                    
+                    disabled={isSubmitting}
                 >
-                    Add product
+                    {isSubmitting
+                        ? "Creating..."
+                        : "Add product"}
                 </button>
-
                 {errors.length > 0 && (
                     <div
                         className="form-errors"
@@ -191,6 +183,16 @@ export default function ProductForm({
                                 <li key={error}>{error}</li>
                             ))}
                         </ul>
+                    </div>
+                )}
+
+                {apiError !== "" && (
+                    <div
+                        className="form-errors"
+                        role="alert"
+                    >
+                        <p>Could not create product.</p>
+                        <p>{apiError}</p>
                     </div>
                 )}
 
