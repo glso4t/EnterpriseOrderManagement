@@ -384,10 +384,64 @@
     color: #243b67;
 }
 
+.stock-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.stock-actions button {
+    flex: 1;
+    min-width: 0;
+    padding: 10px 12px;
+    border-radius: 9px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 150ms ease, opacity 150ms ease;
+}
+
 .restock-button {
     width: 15%;
     margin-top: 20px;
     margin-right: 10px;
+}
+
+.stock-actions .restock-button {
+    width: auto;
+    margin: 0;
+    border: 1px solid #243b67;
+    background: #243b67;
+    color: #ffffff;
+}
+
+.stock-actions .restock-button:hover:not(:disabled) {
+    background: #314d7e;
+    
+}
+
+.stock-actions .remove-stock-button {
+    border: 1px solid #d7deea;
+    background: #f8fafc;
+    color: #45556d;
+    
+}
+
+.stock-actions .remove-stock-button:hover:not(:disabled) {
+    background: #e9eef6;
+    border-color: #aebbd0;
+    
+}
+
+.stock-actions button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+@media (max-width: 380px) {
+    .stock-actions {
+        flex-direction: column;
+    }
 }
 
 .filter-message {

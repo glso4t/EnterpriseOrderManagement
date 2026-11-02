@@ -18,3 +18,9 @@ export interface CreateProductRequest {
     price: number;
     stock: number;
 }
+
+export interface PatchProductRequest {
+    name?: string;
+    price?: number;
+    stock?: number;
+}

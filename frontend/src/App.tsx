@@ -1,4 +1,4 @@
-import { createProduct, getProducts } from "./services/productService";
+import { createProduct, getProducts, patchProduct } from "./services/productService";
 import { useEffect, useState } from "react";
 import "./App.css";
 
@@ -29,6 +29,15 @@ function App() {
         useState(false);
 
     const [isOnline, setIsOnline] = useState(true);
+
+    // State to track which products are currently being updated
+    const [updatingProductIds, setUpdatingProductIds] = 
+    useState<number[]>([]);
+
+    // State to track any errors that occur during stock updates
+    const [stockUpdateError, setStockUpdateError] =
+        useState<string | null>(null);
+
 
     //Effect: update the document title whenever the number of products changes
     useEffect(() => {
@@ -93,33 +102,79 @@ function App() {
     }, []);
 
 
+    //Event handler: update the stock of a product
+    async function updateProductStock(
+        productId: number,
+        newStock: number
+    ): Promise<void> {
+        if (updatingProductIds.includes(productId)) {       //Αν το προϊόν είναι ήδη σε διαδικασία ενημέρωσης, δεν κάνουμε τίποτα
+            return;
+        }
+        setUpdatingProductIds((currentIds) => [     //Προσθέτουμε το productId στη λίστα των προϊόντων που ενημερώνονται
+            ...currentIds,
+            productId
+        ]);
+        setStockUpdateError(null);
+        try {
+            const updatedProduct = await patchProduct(      
+                productId,
+                {
+                    stock: newStock     //Απαιτείται μόνο το stock για την ενημέρωση
+                }
+            );
+            setProducts((currentProducts) =>        //Ενημέρωση του state των προϊόντων με το ενημερωμένο προϊόν
+                currentProducts.map((product) =>
+                    product.id === updatedProduct.id        //Αν το productId ταιριάζει με το ενημερωμένο προϊόν, αντικαθιστούμε το προϊόν με το ενημερωμένο προϊόν, αλλιώς κρατάμε το υπάρχον προϊόν
+                        ? {
+                            ...updatedProduct,      
+                            category: product.category
+                        }
+                        : product
+                )
+            );
+        } catch (error: unknown) {
+            const message =
+                error instanceof Error
+                    ? error.message
+                    : "An unexpected error occurred.";
+            setStockUpdateError(message);
+        } finally {     //Αφαιρούμε το productId από τη λίστα των προϊόντων που ενημερώνονται, ανεξάρτητα από το αν η ενημέρωση ήταν επιτυχής ή όχι
+            setUpdatingProductIds((currentIds) =>
+                currentIds.filter(
+                    (id) => id !== productId
+                )
+            );
+        }
+    }
+
     // Event handler: increase stock for a product
-    function handleRestock(productId: number): void {
-        setProducts((currentProducts) =>
-            currentProducts.map((product) =>
-                product.id === productId
-                    ? {
-                        ...product,
-                        stock: product.stock + 1
-                    }
-                    : product
-            )
+    async function handleRestock(productId: number): Promise<void> {
+        const product = products.find(
+            (item) => item.id === productId
+        );
+        if (!product) {
+            return;
+        }
+        await updateProductStock(
+            productId,
+            product.stock + 1
         );
     }
 
     // Event handler: decrease stock for a product
-    function handleRemoveStock(productId: number): void {
-        setProducts((currentProducts) =>
-            currentProducts.map((product) =>
-                product.id === productId && product.stock > 0
-                    ? {
-                        ...product,
-                        stock: product.stock - 1
-                    }
-                    : product
-            )
+    async function handleRemoveStock(productId: number): Promise<void> {
+        const product = products.find(
+            (item) => item.id === productId
+        );
+        if (!product || product.stock <= 0) {
+            return;
+        }
+        await updateProductStock(
+            productId,
+            product.stock - 1
         );
     }
+
 
     // Event handler: add a new product 
     async function handleAddProduct(
@@ -243,6 +298,16 @@ function App() {
                             </button>
                         </label>
 
+                        {stockUpdateError !== null && (
+                            <div
+                                className="catalog-error"
+                                role="alert"
+                            >
+                                <p>Could not update product stock.</p>
+                                <p>{stockUpdateError}</p>
+                            </div>
+                        )}
+
                         <button
                             className="filter-button"
                             type="button"
@@ -288,6 +353,7 @@ function App() {
                                     product={product}
                                     onRestock={handleRestock}
                                     onRemoveStock={handleRemoveStock}
+                                    isUpdating={updatingProductIds.includes(product.id)}
                                 />
                             ))}
                         </div>

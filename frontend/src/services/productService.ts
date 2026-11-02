@@ -1,7 +1,8 @@
 import type {
     Product,
     ProductApiResponse,
-    CreateProductRequest
+    CreateProductRequest,
+    PatchProductRequest
 } from "../types";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
@@ -158,3 +159,30 @@ export async function createProduct(
     const data: unknown = await response.json();
     return mapProductResponse(data);
 }
+
+//(PATCH) updates an existing product
+export async function patchProduct(
+    productId: number,
+    request: PatchProductRequest
+): Promise<Product> {
+    if (!Number.isInteger(productId) || productId <= 0) {
+        throw new Error("Invalid product ID.");
+    }
+    const response = await fetch(
+        `${getBaseUrl()}/api/v1/products/${productId}`,
+        {
+            method: "PATCH",
+            headers: getApiHeaders(true),
+            body: JSON.stringify(request)
+        }
+    );
+    if (!response.ok) {
+        throw new Error(
+            await getApiErrorMessage(response)
+        );
+    }
+    const data: unknown = await response.json();
+    return mapProductResponse(data);
+}
+
+
