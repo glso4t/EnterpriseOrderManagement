@@ -1,10 +1,13 @@
-import type { Product } from "../types";
+import { useState } from "react";
+import ProductEditForm from "./ProductEditForm";
+import type { Product, UpdateProductRequest } from "../types";
 
 interface ProductCardProps {
     product: Product;
     onRestock: (productId: number) => Promise<void>;
     onRemoveStock: (productId: number) => Promise<void>;
     onDelete: (productId: number) => Promise<void>;
+    onUpdate: (productId: number, productData: UpdateProductRequest) => Promise<void>;
     isUpdating: boolean;
     isDeleting: boolean;
 }
@@ -14,11 +17,13 @@ export default function ProductCard({
     onRestock,
     onRemoveStock,
     onDelete,
+    onUpdate,
     isUpdating,
     isDeleting
 }: ProductCardProps) {
     let stockLabel: string;
     let stockClass: string;
+    const [isEditing, setIsEditing] = useState(false);
 
     if (product.stock === 0) {
         stockLabel = "Out of stock";
@@ -76,7 +81,7 @@ export default function ProductCard({
                 <button
                     className="restock-button"
                     type="button"
-                    disabled={isUpdating || isDeleting}
+                    disabled={isUpdating || isDeleting || isEditing}
                     onClick={() => void onRestock(product.id)}
                 >
                     {isUpdating ? "Updating..." : "Restock +1"}
@@ -84,15 +89,34 @@ export default function ProductCard({
                 <button
                     className="restock-button"
                     type="button"
-                    disabled={isUpdating || isDeleting || product.stock === 0}
+                    disabled={isUpdating || isDeleting ||  product.stock === 0 || isEditing}
                     onClick={() => void onRemoveStock(product.id)}
                 >
                     {isUpdating ? "Updating..." : "Remove -1"}
                 </button>
+
+                {isEditing ? (
+                    <ProductEditForm
+                        product={product}
+                        onSave={onUpdate}
+                        onCancel={() => setIsEditing(false)}
+                        isSaving={isUpdating}
+                    />
+                ) : (
+                    <button
+                        className="edit-button"
+                        type="button"
+                        disabled={isUpdating || isDeleting}
+                        onClick={() => setIsEditing(true)}
+                    >
+                        Edit 
+                    </button>
+                )}
+
                 <button
                     className="delete-button"
                     type="button"
-                    disabled={isUpdating || isDeleting}
+                    disabled={isUpdating || isDeleting || isEditing}
                     onClick={handleDelete}
                 >
                     {isDeleting ? "Deleting..." : "Delete"}

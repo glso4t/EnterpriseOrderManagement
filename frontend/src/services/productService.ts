@@ -2,7 +2,8 @@ import type {
     Product,
     ProductApiResponse,
     CreateProductRequest,
-    PatchProductRequest
+    PatchProductRequest,
+    UpdateProductRequest
 } from "../types";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
@@ -172,6 +173,31 @@ export async function patchProduct(
         `${getBaseUrl()}/api/v1/products/${productId}`,
         {
             method: "PATCH",
+            headers: getApiHeaders(true),
+            body: JSON.stringify(request)
+        }
+    );
+    if (!response.ok) {
+        throw new Error(
+            await getApiErrorMessage(response)
+        );
+    }
+    const data: unknown = await response.json();
+    return mapProductResponse(data);
+}
+
+// (PUT) updates an existing product with a complete replacement of its data
+export async function updateProduct(
+    productId: number,
+    request: UpdateProductRequest
+): Promise<Product> {
+    if (!Number.isInteger(productId) || productId <= 0) {
+        throw new Error("Invalid product ID.");
+    }
+    const response = await fetch(
+        `${getBaseUrl()}/api/v1/products/${productId}`,
+        {
+            method: "PUT",
             headers: getApiHeaders(true),
             body: JSON.stringify(request)
         }

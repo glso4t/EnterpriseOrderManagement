@@ -24,3 +24,9 @@ export interface PatchProductRequest {
     price?: number;
     stock?: number;
 }
+
+export interface UpdateProductRequest {
+    name: string;
+    price: number;
+    stock: number;
+}

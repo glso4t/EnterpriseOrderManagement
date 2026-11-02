@@ -1,4 +1,4 @@
-import { createProduct, getProducts, patchProduct, deleteProduct  } from "./services/productService";
+import { createProduct, getProducts, patchProduct, updateProduct, deleteProduct  } from "./services/productService";
 import { useEffect, useState } from "react";
 import "./App.css";
 
@@ -6,7 +6,8 @@ import ProductCard from "./components/ProductCard";
 import ProductForm from "./components/ProductForm";
 import type {
     CreateProductRequest,
-    Product
+    Product,
+    UpdateProductRequest
 } from "./types";
 
 
@@ -32,7 +33,7 @@ function App() {
 
     // State to track which products are currently being updated
     const [updatingProductIds, setUpdatingProductIds] = 
-    useState<number[]>([]);
+        useState<number[]>([]);
 
     // State to track any errors that occur during stock updates
     const [stockUpdateError, setStockUpdateError] =
@@ -147,6 +148,46 @@ function App() {
         }
     }
 
+    //Event handler: update a product
+    async function handleUpdateProduct(
+        productId: number,
+        productData: UpdateProductRequest
+    ): Promise<void> {
+        if (    //Αν το προϊόν είναι ήδη σε διαδικασία ενημέρωσης ή διαγραφής, δεν κάνουμε τίποτα
+            updatingProductIds.includes(productId) ||
+            deletingProductIds.includes(productId)
+        ) {
+            throw new Error(
+                "This product is already being processed."
+            );
+        }
+        setUpdatingProductIds((currentIds) => [ //Προσθέτουμε το productId στη λίστα των προϊόντων που ενημερώνονται
+            ...currentIds,
+            productId
+        ]);
+        try {       //Καλούμε τη συνάρτηση updateProduct για να ενημερώσουμε το προϊόν στον server. Αν η ενημέρωση είναι επιτυχής, ενημερώνουμε το state των προϊόντων αντικαθιστώντας το ενημερωμένο προϊόν στη λίστα. Αν η ενημέρωση αποτύχει, εμφανίζουμε το μήνυμα σφάλματος.
+            const updatedProduct = await updateProduct(
+                productId,
+                productData
+            );
+            setProducts((currentProducts) =>
+                currentProducts.map((product) =>
+                    product.id === updatedProduct.id
+                        ? {
+                            ...updatedProduct,
+                            category: product.category
+                        }
+                        : product
+                )
+            );  //δεν υπάρχει catch εδώ, επειδή θέλουμε το σφάλμα να μεταφερθεί πίσω στο ProductEditForm, το οποίο έχει ήδη δικό του try/catch και εμφανίζει το apiError.
+        } finally { //Αφαιρούμε το productId από τη λίστα των προϊόντων που ενημερώνονται, ανεξάρτητα από το αν η ενημέρωση ήταν επιτυχής ή όχι
+            setUpdatingProductIds((currentIds) =>
+                currentIds.filter(
+                    (id) => id !== productId
+                )
+            );
+        }
+    }
 
     //Event handler: update the stock of a product
     async function updateProductStock(
@@ -405,6 +446,7 @@ function App() {
                                     product={product}
                                     onRestock={handleRestock}
                                     onRemoveStock={handleRemoveStock}
+                                    onUpdate={handleUpdateProduct}
                                     onDelete={handleDeleteProduct}
                                     isUpdating={updatingProductIds.includes(product.id)}
                                     isDeleting={deletingProductIds.includes(product.id)}
