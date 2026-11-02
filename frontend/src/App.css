@@ -637,3 +637,27 @@
     opacity: 0.65;
     cursor: not-allowed;
 }
+
+.delete-button {
+    width: 100%;
+    margin-top: 10px;
+    padding: 9px 12px;
+    border: 1px solid #f0caca;
+    border-radius: 9px;
+    background: #fff7f7;
+    color: #a33c3c;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 150ms ease, border-color 150ms ease;
+}
+
+.delete-button:hover:not(:disabled) {
+    background: #fdeaea;
+    border-color: #e5aaaa;
+}
+
+.delete-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}

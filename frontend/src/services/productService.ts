@@ -185,4 +185,25 @@ export async function patchProduct(
     return mapProductResponse(data);
 }
 
-
+// (DELETE) deletes a product by its ID
+export async function deleteProduct(
+    productId: number
+): Promise<void> {
+    if (!Number.isInteger(productId) || productId <= 0) {
+        throw new Error("Invalid product ID.");
+    }
+    const response = await fetch(
+        `${getBaseUrl()}/api/v1/products/${productId}`,
+        {
+            method: "DELETE",
+            headers: getApiHeaders()
+        }
+    );
+    if (!response.ok) {
+        throw new Error(
+            await getApiErrorMessage(response)
+        );
+    }
+    // The API returns 204 No Content.
+    // There is no JSON response body to read.
+}

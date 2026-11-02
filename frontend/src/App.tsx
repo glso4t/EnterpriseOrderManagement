@@ -1,4 +1,4 @@
-import { createProduct, getProducts, patchProduct } from "./services/productService";
+import { createProduct, getProducts, patchProduct, deleteProduct  } from "./services/productService";
 import { useEffect, useState } from "react";
 import "./App.css";
 
@@ -37,6 +37,15 @@ function App() {
     // State to track any errors that occur during stock updates
     const [stockUpdateError, setStockUpdateError] =
         useState<string | null>(null);
+
+    // περιέχει τα IDs των προϊόντων που βρίσκονται αυτή τη στιγμή σε διαδικασία διαγραφής
+    const [deletingProductIds, setDeletingProductIds] =
+        useState<number[]>([]);
+
+    // κρατά το μήνυμα σφάλματος όταν το DELETE request αποτυγχάνει
+    const [deleteError, setDeleteError] =
+        useState<string | null>(null);
+
 
 
     //Effect: update the document title whenever the number of products changes
@@ -100,6 +109,43 @@ function App() {
             ignore = true;
         };
     }, []);
+
+    //Event handler: delete a product
+    async function handleDeleteProduct(
+        productId: number
+    ): Promise<void> {
+        if (        //Αν το προϊόν είναι ήδη σε διαδικασία διαγραφής ή ενημέρωσης, δεν κάνουμε τίποτα
+            deletingProductIds.includes(productId) ||
+            updatingProductIds.includes(productId)
+        ) {
+            return;
+        }
+        setDeletingProductIds((currentIds) => [     //Προσθέτουμε το productId στη λίστα των προϊόντων που διαγράφονται
+            ...currentIds,
+            productId
+        ]);
+        setDeleteError(null);
+        try {       //Καλούμε τη συνάρτηση deleteProduct για να διαγράψουμε το προϊόν από τον server. Αν η διαγραφή είναι επιτυχής, ενημερώνουμε το state των προϊόντων αφαιρώντας το διαγραμμένο προϊόν από τη λίστα. Αν η διαγραφή αποτύχει, εμφανίζουμε το μήνυμα σφάλματος.
+            await deleteProduct(productId);
+            setProducts((currentProducts) =>
+                currentProducts.filter(
+                    (product) => product.id !== productId
+                )
+            );
+        } catch (error: unknown) {
+            const message =
+                error instanceof Error
+                    ? error.message
+                    : "An unexpected error occurred.";
+            setDeleteError(message);
+        } finally {     //Αφαιρούμε το productId από τη λίστα των προϊόντων που διαγράφονται, ανεξάρτητα από το αν η διαγραφή ήταν επιτυχής ή όχι
+            setDeletingProductIds((currentIds) =>
+                currentIds.filter(
+                    (id) => id !== productId
+                )
+            );
+        }
+    }
 
 
     //Event handler: update the stock of a product
@@ -174,7 +220,6 @@ function App() {
             product.stock - 1
         );
     }
-
 
     // Event handler: add a new product 
     async function handleAddProduct(
@@ -308,6 +353,13 @@ function App() {
                             </div>
                         )}
 
+                        {deleteError !== null && (
+                            <div className="catalog-error" role="alert">
+                                <h3>Could not delete product</h3>
+                                <p>{deleteError}</p>
+                            </div>
+                        )}
+
                         <button
                             className="filter-button"
                             type="button"
@@ -353,7 +405,9 @@ function App() {
                                     product={product}
                                     onRestock={handleRestock}
                                     onRemoveStock={handleRemoveStock}
+                                    onDelete={handleDeleteProduct}
                                     isUpdating={updatingProductIds.includes(product.id)}
+                                    isDeleting={deletingProductIds.includes(product.id)}
                                 />
                             ))}
                         </div>

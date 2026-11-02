@@ -4,14 +4,18 @@ interface ProductCardProps {
     product: Product;
     onRestock: (productId: number) => Promise<void>;
     onRemoveStock: (productId: number) => Promise<void>;
+    onDelete: (productId: number) => Promise<void>;
     isUpdating: boolean;
+    isDeleting: boolean;
 }
 
 export default function ProductCard({
     product,
     onRestock,
     onRemoveStock,
-    isUpdating
+    onDelete,
+    isUpdating,
+    isDeleting
 }: ProductCardProps) {
     let stockLabel: string;
     let stockClass: string;
@@ -26,6 +30,15 @@ export default function ProductCard({
         stockLabel = "In stock";
         stockClass = "in-stock";
     }
+
+    function handleDelete(): void {
+    const confirmed = window.confirm(
+        `Are you sure you want to delete "${product.name}"?`
+    );
+    if (confirmed) {
+        void onDelete(product.id);
+    }
+}
 
     return (
         <article className="product-card">
@@ -59,22 +72,32 @@ export default function ProductCard({
                     <span>units</span>
                 </div>
             </div>
-            <button
-                className="restock-button"
-                type="button"
-                disabled={isUpdating}
-                onClick={() => void onRestock(product.id)}
-            >
-                {isUpdating ? "Updating..." : "Restock +1"}
-            </button>
-            <button
-                className="restock-button"
-                type="button"
-                disabled={isUpdating || product.stock === 0}
-                onClick={() => void onRemoveStock(product.id)}
-            >
-                {isUpdating ? "Updating..." : "Remove -1"}
-            </button>
+            <div className="stock-actions">
+                <button
+                    className="restock-button"
+                    type="button"
+                    disabled={isUpdating || isDeleting}
+                    onClick={() => void onRestock(product.id)}
+                >
+                    {isUpdating ? "Updating..." : "Restock +1"}
+                </button>
+                <button
+                    className="restock-button"
+                    type="button"
+                    disabled={isUpdating || isDeleting || product.stock === 0}
+                    onClick={() => void onRemoveStock(product.id)}
+                >
+                    {isUpdating ? "Updating..." : "Remove -1"}
+                </button>
+                <button
+                    className="delete-button"
+                    type="button"
+                    disabled={isUpdating || isDeleting}
+                    onClick={handleDelete}
+                >
+                    {isDeleting ? "Deleting..." : "Delete"}
+                </button>
+            </div>
         </article>
     );
 }
