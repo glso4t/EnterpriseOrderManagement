@@ -1,19 +1,33 @@
-import { createProduct, getProducts, patchProduct, updateProduct, deleteProduct  } from "./services/productService";
 import { useEffect, useState } from "react";
 import "./App.css";
 
+import CustomersPage from "./pages/CustomersPage";
 import ProductCard from "./components/ProductCard";
 import ProductForm from "./components/ProductForm";
+
+import { createProduct, 
+    getProducts, 
+    patchProduct, 
+    updateProduct, 
+    deleteProduct  
+} from "./services/productService";
+
 import type {
     CreateProductRequest,
     Product,
     UpdateProductRequest
 } from "./types";
 
+type ActiveScreen = "products" | "customers";
 
 function App() {
 
-    // State
+    // States
+
+    // State to track the currently active screen (products or customers)
+    const [activeScreen, setActiveScreen] =
+    useState<ActiveScreen>("products");
+
     const [products, setProducts] =
         useState<Product[]>([]);
 
@@ -48,6 +62,7 @@ function App() {
         useState<string | null>(null);
 
 
+    //Effects
 
     //Effect: update the document title whenever the number of products changes
     useEffect(() => {
@@ -303,6 +318,42 @@ function App() {
                     </span>
                 </a>
 
+                <nav className="main-navigation" aria-label="Main navigation">
+                    <button
+                        type="button"
+                        className={
+                            activeScreen === "products"
+                                ? "screen-nav-button active"
+                                : "screen-nav-button"
+                        }
+                        aria-current={
+                            activeScreen === "products"
+                                ? "page"
+                                : undefined
+                        }
+                        onClick={() => setActiveScreen("products")}
+                    >
+                        Products
+                    </button>
+
+                    <button
+                        type="button"
+                        className={
+                            activeScreen === "customers"
+                                ? "screen-nav-button active"
+                                : "screen-nav-button"
+                        }
+                        aria-current={
+                            activeScreen === "customers"
+                                ? "page"
+                                : undefined
+                        }
+                        onClick={() => setActiveScreen("customers")}
+                    >
+                        Customers
+                    </button>
+                </nav>
+
                 <div className="connection-status" aria-live="polite">
                     <span
                         className={`connection-dot ${
@@ -322,6 +373,8 @@ function App() {
             </header>
 
             <main className="page-content">
+                {activeScreen === "products" ? (
+                <>
                 <section className="page-intro">
                     <div>
                         <p className="eyebrow">
@@ -455,6 +508,10 @@ function App() {
                         </div>
                     )}
                 </section>
+                    </>
+                ) : (
+                    <CustomersPage />
+                )}
             </main>
 
             <footer className="page-footer">
