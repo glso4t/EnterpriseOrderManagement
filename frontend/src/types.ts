@@ -1,3 +1,4 @@
+//Product interface
 export interface Product {
     id: number;
     name: string;
@@ -29,4 +30,11 @@ export interface UpdateProductRequest {
     name: string;
     price: number;
     stock: number;
+}
+
+//Customer interface
+export interface Customer {
+    id: number;
+    name: string;
+    email: string;
 }
