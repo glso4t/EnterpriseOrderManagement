@@ -931,3 +931,39 @@
 .customer-edit-form .edit-form-actions button {
     margin-top: 0;
 }
+
+/* Customer delete confirmation */
+
+.customer-delete-confirmation {
+    display: grid;
+    gap: 0.75rem;
+    margin-top: 0.5rem;
+    padding: 1rem;
+    border: 1px solid #fecaca;
+    border-radius: 0.75rem;
+    background: #fff7f7;
+}
+
+.customer-delete-confirmation p {
+    margin: 0;
+    color: #991b1b;
+    font-size: 0.9rem;
+    font-weight: 600;
+    line-height: 1.5;
+}
+
+.customer-delete-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.65rem;
+}
+
+.customer-delete-actions button {
+    width: auto;
+    margin-top: 0;
+}
+
+.customer-delete-actions button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}

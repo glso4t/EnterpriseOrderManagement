@@ -102,3 +102,19 @@ export async function updateCustomer(
     }
     return updatedCustomer;
 }
+
+// (DELETE) deletes a customer by ID from the API
+export async function deleteCustomer(
+    customerId: number
+): Promise<void> {
+    // Validate the customer ID
+    if (!Number.isInteger(customerId) || customerId <= 0) {
+        throw new Error("Invalid customer ID.");
+    }
+    await apiRequest(
+        `/api/v1/customers/${customerId}`,
+        {
+            method: "DELETE"
+        }
+    );
+}

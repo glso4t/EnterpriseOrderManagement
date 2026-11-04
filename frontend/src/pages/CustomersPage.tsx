@@ -12,7 +12,8 @@ import {
     getCustomers,
     getCustomerById,
     createCustomer,
-    updateCustomer
+    updateCustomer,
+    deleteCustomer
 } from "../services/customerService";
 
 export default function CustomersPage() {
@@ -52,6 +53,20 @@ export default function CustomersPage() {
     // Tracks which customer is currently being updated
     const [updatingCustomerId, setUpdatingCustomerId] =
         useState<number | null>(null);
+
+    // Controls which customer is waiting for delete confirmation
+    const [customerIdPendingDelete, setCustomerIdPendingDelete] =
+        useState<number | null>(null);
+
+    // Tracks which customer is currently being deleted
+    const [deletingCustomerId, setDeletingCustomerId] =
+        useState<number | null>(null);
+
+    // Stores errors related to customer deletion
+    const [deleteError, setDeleteError] =
+        useState<string | null>(null);
+
+
 
     // Effects  
 
@@ -145,6 +160,8 @@ export default function CustomersPage() {
         setSelectedCustomer(null);
         setDetailsError(null);
         setIsEditFormOpen(false);
+        setCustomerIdPendingDelete(null);
+        setDeleteError(null);
     }
 
     // Event handler: creates a new customer
@@ -192,6 +209,41 @@ export default function CustomersPage() {
             setUpdatingCustomerId(null);
         }
     }
+
+    // Event handler: deletes an existing customer
+    async function handleDeleteCustomer(
+        customerId: number
+    ): Promise<void> {
+        setDeletingCustomerId(customerId);
+        setDeleteError(null);
+        try {
+            await deleteCustomer(customerId);   // Send DELETE request to the API
+            const remainingCustomers = customers.filter(    // Calculate the remaining customers
+                (customer) => customer.id !== customerId
+            );
+            setCustomers(remainingCustomers);   // Update the customers list state to remove the deleted customer
+            setCustomerIdPendingDelete(null);   // Clear the pending delete state
+            setIsEditFormOpen(false);   // Close the edit form
+            setSelectedCustomer(null);  // Clear the selected customer state
+            setDetailsError(null);
+            setIsDetailsLoading(false);
+            if (selectedCustomerId === customerId) {    // If the deleted customer was the currently selected one, select the next available customer or clear the selection if none remain
+                const nextCustomer = remainingCustomers[0] ?? null;
+                setSelectedCustomerId(
+                    nextCustomer?.id ?? null
+                );
+            }
+        } catch (error: unknown) {  // Handle errors that occur during the deletion process
+            const message =
+                error instanceof Error
+                    ? error.message
+                    : "An unexpected error occurred.";
+            setDeleteError(message);
+        } finally { // Reset the deleting customer state regardless of success or failure
+            setDeletingCustomerId(null);
+        }
+    }
+
 
 
     return (
@@ -379,8 +431,75 @@ export default function CustomersPage() {
                             type="button"
                             onClick={() => setIsEditFormOpen(true)}
                             >
-                            Edit customer
+                                Edit customer
                             </button>
+
+                            {customerIdPendingDelete === selectedCustomer.id ? (
+
+                                <div className="customer-delete-confirmation">
+
+                                    <p>
+                                        Are you sure you want to delete this customer?
+                                    </p>
+
+                                    <div className="customer-delete-actions">
+
+                                        <button
+                                            className="delete-button"
+                                            type="button"
+                                            onClick={() =>
+                                                handleDeleteCustomer(selectedCustomer.id)
+                                            }
+                                            disabled={
+                                                deletingCustomerId === selectedCustomer.id
+                                            }
+                                        >
+                                            {deletingCustomerId === selectedCustomer.id
+                                                ? "Deleting..."
+                                                : "Confirm delete"}
+                                        </button>
+
+                                        <button
+                                            className="filter-button"
+                                            type="button"
+                                            onClick={() => {
+                                                setCustomerIdPendingDelete(null);
+                                                setDeleteError(null);
+                                            }}
+                                            disabled={
+                                                deletingCustomerId === selectedCustomer.id
+                                            }
+                                        >
+                                            Cancel
+                                        </button>
+
+                                    </div>
+
+                                </div>
+
+                            ) : (
+
+                                <button
+                                    className="delete-button"
+                                    type="button"
+                                    onClick={() => {
+                                        setCustomerIdPendingDelete(selectedCustomer.id);
+                                        setDeleteError(null);
+                                    }}
+                                >
+                                    Delete customer
+                                </button>
+
+                            )}
+                            {deleteError !== null && (
+                                <div className="form-errors" role="alert">
+
+                                    <p>Could not delete customer.</p>
+
+                                    <p>{deleteError}</p>
+
+                                </div>
+                            )}
                         </div>
                         )
                     ) : null}
