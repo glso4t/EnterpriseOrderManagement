@@ -112,7 +112,6 @@ export default function CustomersPage() {
     //**Αν επιλέξεις άλλον πελάτη, η συνθήκη δεν ισχύει και το GET εκτελείται κανονικά.
     useEffect(() => {
         if (selectedCustomerId === null) {
-            setSelectedCustomer(null);
             return;
         }
         // Customer details are already available
@@ -123,8 +122,6 @@ export default function CustomersPage() {
         let ignore = false;
         async function loadCustomerDetails(): Promise<void> {
             try {
-                setIsDetailsLoading(true);
-                setDetailsError(null);
                 const customer = await getCustomerById(
                     customerId
                 );
@@ -157,6 +154,7 @@ export default function CustomersPage() {
     function handleSelectCustomer(customerId: number): void {
         setSelectedCustomerId(customerId);
         setSelectedCustomer(null);
+        setIsDetailsLoading(true);
         setDetailsError(null);
         setIsEditFormOpen(false);
         setCustomerIdPendingDelete(null);

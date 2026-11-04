@@ -41,8 +41,6 @@ export default function ProductsPage({ isActive }: ProductsPageProps) {
     const [showInStockOnly, setShowInStockOnly] =
         useState(false);
 
-    const [isOnline, setIsOnline] = useState(true);
-
     // State to track which products are currently being updated
     const [updatingProductIds, setUpdatingProductIds] = 
         useState<number[]>([]);
