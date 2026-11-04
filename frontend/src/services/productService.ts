@@ -88,7 +88,14 @@ export async function patchProduct(
         }
     );
     const data: unknown = await response.json();
-    return mapProductResponse(data);
+    const updatedProduct = mapProductResponse(data);
+    // Ensure that the API returned the requested product
+    if (updatedProduct.id !== productId) {
+        throw new Error(
+            "The API returned an unexpected product."
+        );
+    }
+    return updatedProduct;
 }
 
 // (PUT) updates an existing product with a complete replacement of its data
@@ -107,8 +114,16 @@ export async function updateProduct(
         }
     );
     const data: unknown = await response.json();
-    return mapProductResponse(data);
+    const updatedProduct = mapProductResponse(data);
+    // Ensure that the API returned the requested product
+    if (updatedProduct.id !== productId) {
+        throw new Error(
+            "The API returned an unexpected product."
+        );
+    }
+    return updatedProduct;
 }
+
 
 // (DELETE) deletes a product by its ID
 export async function deleteProduct(

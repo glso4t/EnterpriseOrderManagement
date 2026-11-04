@@ -1,15 +1,18 @@
 import { useEffect, useState } from "react";
 
 import CustomerForm from "../components/CustomerForm";
+import CustomerEditForm from "../components/CustomerEditForm";
 
 import type {
     Customer,
-    CreateCustomerRequest
+    CreateCustomerRequest,
+    UpdateCustomerRequest
 } from "../types";
 import {
     getCustomers,
     getCustomerById,
-    createCustomer
+    createCustomer,
+    updateCustomer
 } from "../services/customerService";
 
 export default function CustomersPage() {
@@ -42,6 +45,13 @@ export default function CustomersPage() {
     const [isCreateFormOpen, setIsCreateFormOpen] =
         useState(false);
 
+    // Controls whether the customer edit form is visible
+    const [isEditFormOpen, setIsEditFormOpen] = 
+        useState(false);
+
+    // Tracks which customer is currently being updated
+    const [updatingCustomerId, setUpdatingCustomerId] =
+        useState<number | null>(null);
 
     // Effects  
 
@@ -134,6 +144,7 @@ export default function CustomersPage() {
         setSelectedCustomerId(customerId);
         setSelectedCustomer(null);
         setDetailsError(null);
+        setIsEditFormOpen(false);
     }
 
     // Event handler: creates a new customer
@@ -154,6 +165,32 @@ export default function CustomersPage() {
         // Clear any previous details loading or errors
         setIsDetailsLoading(false);
         setDetailsError(null);
+    }
+
+    // Event handler: updates an existing customer
+    async function handleUpdateCustomer(
+        customerId: number,
+        customerData: UpdateCustomerRequest
+    ): Promise<void> {
+        setUpdatingCustomerId(customerId);
+        try {
+            const updatedCustomer = await updateCustomer(
+                customerId,
+                customerData
+            );
+            // Update the customer in the existing list
+            setCustomers((currentCustomers) =>
+                currentCustomers.map((customer) =>
+                    customer.id === updatedCustomer.id
+                        ? updatedCustomer
+                        : customer
+                )
+            );
+            // Update the currently selected customer
+            setSelectedCustomer(updatedCustomer);
+        } finally {
+            setUpdatingCustomerId(null);
+        }
     }
 
 
@@ -301,6 +338,21 @@ export default function CustomersPage() {
                             <p>{detailsError}</p>
                         </div>
                     ) : selectedCustomer !== null ? (
+
+                        isEditFormOpen ? (
+
+                            <CustomerEditForm
+                                key={selectedCustomer.id}
+                                customer={selectedCustomer}
+                                onSave={handleUpdateCustomer}
+                                onCancel={() => setIsEditFormOpen(false)}
+                                isSaving={
+                                    updatingCustomerId === selectedCustomer.id
+                                }
+                            />
+
+                        ) : (
+
                         <div className="customer-details">
                             <div className="customer-avatar">
                                 {selectedCustomer.name
@@ -322,7 +374,15 @@ export default function CustomersPage() {
                                 <span>Email address</span>
                                 <strong>{selectedCustomer.email}</strong>
                             </div>
+                            <button
+                            className="edit-button"
+                            type="button"
+                            onClick={() => setIsEditFormOpen(true)}
+                            >
+                            Edit customer
+                            </button>
                         </div>
+                        )
                     ) : null}
                 </section>
             </div>

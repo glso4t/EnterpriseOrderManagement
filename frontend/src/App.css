@@ -900,3 +900,34 @@
     justify-self: start;
     margin-top: 0;
 }
+
+/* Customer edit form */
+
+.customer-edit-form {
+    margin-top: 1.5rem;
+    padding: 1.25rem;
+    border: 1px solid #dbe3ef;
+    border-radius: 0.75rem;
+    background: #f8fafc;
+}
+
+.customer-edit-form h3 {
+    margin-top: 0;
+    margin-bottom: 1rem;
+    color: #243b67;
+}
+
+.customer-edit-form-fields {
+    display: grid;
+    gap: 1rem;
+}
+
+.customer-edit-form .edit-form-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.65rem;
+}
+
+.customer-edit-form .edit-form-actions button {
+    margin-top: 0;
+}

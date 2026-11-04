@@ -1,7 +1,8 @@
 import { apiRequest } from "./apiClient";
 import type {
     Customer,
-    CreateCustomerRequest
+    CreateCustomerRequest,
+    UpdateCustomerRequest
 } from "../types";
 
 // Checks whether the API response has the expected structure
@@ -73,4 +74,31 @@ export async function createCustomer(
     );
     const data: unknown = await response.json();
     return mapCustomerResponse(data);
+}
+
+// (PUT) updates an existing customer in the API and returns the updated Customer object
+export async function updateCustomer(
+    customerId: number,
+    customerData: UpdateCustomerRequest
+): Promise<Customer> {
+    // Validate the customer ID
+    if (!Number.isInteger(customerId) || customerId <= 0) {
+        throw new Error("Invalid customer ID.");
+    }
+    const response = await apiRequest(
+        `/api/v1/customers/${customerId}`,
+        {
+            method: "PUT",
+            body: JSON.stringify(customerData)
+        }
+    );
+    const data: unknown = await response.json();
+    const updatedCustomer = mapCustomerResponse(data);
+    // Ensure that the API returned the requested customer
+    if (updatedCustomer.id !== customerId) {
+        throw new Error(
+            "The API returned an unexpected customer."
+        );
+    }
+    return updatedCustomer;
 }
