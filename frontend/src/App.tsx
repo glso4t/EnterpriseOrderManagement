@@ -147,7 +147,9 @@ function App() {
 
             <main className="page-content">
                 <div hidden={activeScreen !== "products"}>
-                    <ProductsPage />
+                    <ProductsPage 
+                        isActive={activeScreen === "products"}
+                    />
                 </div>
 
                 {hasVisitedCustomers && (

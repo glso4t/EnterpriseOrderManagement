@@ -18,7 +18,11 @@ import type {
 } from "../types";
 
 
-export default function ProductsPage() {
+interface ProductsPageProps {
+    isActive: boolean;
+}
+
+export default function ProductsPage({ isActive }: ProductsPageProps) {
 
     // States
 
@@ -65,8 +69,11 @@ export default function ProductsPage() {
 
     // Effect: load products from the ASP.NET Core API
     useEffect(() => {
+        if (!isActive) {    // If the ProductsPage is not active, do not load products
+            return;
+        }
         let ignore = false;
-        async function loadProducts(): Promise<void> {
+        async function loadProducts(): Promise<void> {  //Load products from the API and update the state
             try {
                 setIsLoading(true);
                 setLoadError(null);
@@ -92,7 +99,7 @@ export default function ProductsPage() {
         return () => {
             ignore = true;
         };
-    }, []);
+    }, [isActive]);
 
 
     //Event handlers
