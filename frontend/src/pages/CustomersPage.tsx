@@ -106,7 +106,6 @@ export default function CustomersPage() {
         };
     }, []);
 
-
     // Effect: load details for the selected customer
     //**Όταν επιλέγεις έναν πελάτη από τη λίστα και δεν έχουμε τα στοιχεία του, γίνεται GET by ID.
     //**Όταν δημιουργείς έναν νέο πελάτη, έχουμε ήδη την απάντηση του POST και δεν χρειάζεται δεύτερο GET.
