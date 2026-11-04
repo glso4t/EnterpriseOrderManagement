@@ -66,7 +66,7 @@ export default function ProductForm({
             setSuccessMessage("");
             return;
         }
-        try {
+        try {   // If validation passes, proceed to submit the form
             setIsSubmitting(true);
             setErrors([]);
             setApiError("");

@@ -38,3 +38,8 @@ export interface Customer {
     name: string;
     email: string;
 }
+
+export interface CreateCustomerRequest {
+    name: string;
+    email: string;
+}

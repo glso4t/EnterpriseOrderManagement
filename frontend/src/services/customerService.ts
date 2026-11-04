@@ -1,5 +1,8 @@
 import { apiRequest } from "./apiClient";
-import type { Customer } from "../types";
+import type {
+    Customer,
+    CreateCustomerRequest
+} from "../types";
 
 // Checks whether the API response has the expected structure
 function isCustomer(
@@ -52,6 +55,21 @@ export async function getCustomerById(
     }
     const response = await apiRequest(
         `/api/v1/customers/${customerId}`
+    );
+    const data: unknown = await response.json();
+    return mapCustomerResponse(data);
+}
+
+// (POST) creates a new customer in the API and returns the created Customer object
+export async function createCustomer(
+    customerData: CreateCustomerRequest
+): Promise<Customer> {
+    const response = await apiRequest(
+        "/api/v1/customers",
+        {
+            method: "POST",
+            body: JSON.stringify(customerData)
+        }
     );
     const data: unknown = await response.json();
     return mapCustomerResponse(data);

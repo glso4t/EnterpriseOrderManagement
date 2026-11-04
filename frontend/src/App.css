@@ -862,3 +862,41 @@
         padding: 0.75rem 1rem;
     }
 }
+
+/* Customer creation form */
+
+.customer-list-actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+}
+
+.customer-create-form {
+    display: grid;
+    gap: 1rem;
+    margin: 1rem 0;
+    padding: 1.25rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.8rem;
+    background: #f8fafc;
+}
+
+.customer-create-form h3 {
+    margin: 0;
+    color: #0f172a;
+}
+
+.customer-create-form .form-description {
+    margin: 0.4rem 0 0;
+}
+
+.customer-create-form-fields {
+    display: grid;
+    gap: 1rem;
+}
+
+.customer-create-form .submit-button {
+    justify-self: start;
+    margin-top: 0;
+}
