@@ -967,3 +967,395 @@
     opacity: 0.5;
     cursor: not-allowed;
 }
+
+/* ==============================
+   ORDERS PAGE
+================================ */
+
+.orders-page {
+    display: grid;
+    gap: 1.5rem;
+}
+
+
+/* Page Header */
+
+.orders-page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+}
+
+.orders-page-header h1 {
+    margin: 0.25rem 0;
+}
+
+.orders-summary-card {
+    display: grid;
+    gap: 0.3rem;
+    min-width: 150px;
+    padding: 1.2rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.8rem;
+    background: #ffffff;
+}
+
+.orders-summary-card span,
+.orders-summary-card small {
+    color: #64748b;
+    font-size: 0.85rem;
+}
+
+.orders-summary-card strong {
+    color: #243b67;
+    font-size: 1.8rem;
+}
+
+
+/* Filters */
+
+.orders-filters {
+    display: grid;
+    gap: 1rem;
+    padding: 1.25rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.8rem;
+    background: #ffffff;
+}
+
+.orders-filters .section-heading {
+    margin-bottom: 0;
+}
+
+.orders-filter-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1rem;
+}
+
+.orders-filter-grid .form-field {
+    display: grid;
+    gap: 0.4rem;
+}
+
+.orders-filter-grid input,
+.orders-filter-grid select {
+    width: 100%;
+    min-width: 0;
+}
+
+
+/* Orders Section */
+
+.orders-section {
+    display: grid;
+    gap: 1rem;
+}
+
+.orders-section-heading {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.orders-section-heading h2 {
+    margin: 0;
+}
+
+.orders-section-heading p {
+    margin: 0.35rem 0 0;
+    color: #64748b;
+}
+
+.refreshing-message {
+    color: #64748b;
+    font-size: 0.85rem;
+}
+
+
+/* Orders Layout */
+
+.orders-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+    align-items: start;
+    gap: 1.25rem;
+}
+
+.orders-list {
+    display: grid;
+    gap: 0.8rem;
+}
+
+
+/* Order Card */
+
+.order-card {
+    display: grid;
+    width: 100%;
+    gap: 0.85rem;
+    padding: 1.1rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.8rem;
+    background: #ffffff;
+    color: #1e293b;
+    text-align: left;
+    cursor: pointer;
+    transition:
+        border-color 0.2s ease,
+        box-shadow 0.2s ease;
+}
+
+.order-card:hover {
+    border-color: #94a3b8;
+}
+
+.order-card.selected {
+    border-color: #3157a4;
+    box-shadow: 0 0 0 2px rgba(49, 87, 164, 0.12);
+}
+
+.order-card-header,
+.order-card-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+
+.order-card-customer {
+    display: grid;
+    gap: 0.2rem;
+}
+
+.order-customer-label {
+    color: #64748b;
+    font-size: 0.75rem;
+}
+
+.order-card-footer {
+    color: #64748b;
+    font-size: 0.8rem;
+}
+
+.order-card-footer strong {
+    color: #1e293b;
+    font-size: 0.95rem;
+}
+
+.order-card-item-count {
+    margin: 0;
+    color: #64748b;
+    font-size: 0.8rem;
+}
+
+
+/* Order Status */
+
+.order-status {
+    display: inline-flex;
+    align-items: center;
+    width: fit-content;
+    padding: 0.3rem 0.65rem;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 700;
+}
+
+.order-status.pending {
+    color: #92400e;
+    background: #fef3c7;
+}
+
+.order-status.confirmed {
+    color: #166534;
+    background: #dcfce7;
+}
+
+.order-status.cancelled {
+    color: #991b1b;
+    background: #fee2e2;
+}
+
+
+/* Order Details */
+
+.order-details-panel {
+    min-height: 300px;
+    padding: 1.25rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.8rem;
+    background: #ffffff;
+}
+
+.order-details-empty {
+    display: grid;
+    min-height: 250px;
+    place-content: center;
+    gap: 0.5rem;
+    text-align: center;
+}
+
+.order-details-empty h3 {
+    margin: 0;
+}
+
+.order-details-empty p {
+    margin: 0;
+    color: #64748b;
+    font-size: 0.9rem;
+}
+
+.order-details {
+    display: grid;
+    gap: 1.25rem;
+}
+
+.order-details-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.order-details-header h2 {
+    margin: 0.25rem 0 0;
+}
+
+.order-details-meta {
+    display: grid;
+    gap: 0.9rem;
+    padding: 1rem 0;
+    border-top: 1px solid #e2e8f0;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.order-details-meta div {
+    display: grid;
+    gap: 0.2rem;
+}
+
+.order-details-meta span {
+    color: #64748b;
+    font-size: 0.78rem;
+}
+
+.order-details-meta strong {
+    overflow-wrap: anywhere;
+    font-size: 0.9rem;
+}
+
+.order-details > h3 {
+    margin: 0;
+}
+
+.order-detail-items {
+    display: grid;
+    gap: 0.8rem;
+}
+
+.order-detail-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    padding-bottom: 0.8rem;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.order-item-info {
+    display: grid;
+    gap: 0.25rem;
+}
+
+.order-item-info span {
+    color: #64748b;
+    font-size: 0.8rem;
+}
+
+.order-detail-item > strong {
+    white-space: nowrap;
+    font-size: 0.9rem;
+}
+
+.order-details-total {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding-top: 0.5rem;
+    font-size: 1rem;
+}
+
+.order-details-total strong {
+    color: #166534;
+    font-size: 1.25rem;
+}
+
+
+/* Pagination */
+
+.orders-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid #e2e8f0;
+}
+
+.orders-pagination > span {
+    color: #64748b;
+    font-size: 0.85rem;
+}
+
+.orders-pagination > div {
+    display: flex;
+    gap: 0.5rem;
+}
+
+
+/* Responsive Layout */
+
+@media (max-width: 900px) {
+
+    .orders-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .orders-filter-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+}
+
+
+@media (max-width: 600px) {
+
+    .orders-filter-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .orders-pagination {
+        align-items: stretch;
+    }
+
+    .orders-pagination > div {
+        width: 100%;
+    }
+
+    .orders-pagination button {
+        flex: 1;
+    }
+
+    .order-details-panel {
+        padding: 1rem;
+    }
+
+}

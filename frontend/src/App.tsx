@@ -3,9 +3,9 @@ import "./App.css";
 
 import CustomersPage from "./pages/CustomersPage";
 import ProductsPage from "./pages/ProductsPage";
+import OrdersPage from "./pages/OrdersPage";
 
-type ActiveScreen = "products" | "customers";
-
+type ActiveScreen = "products" | "customers" | "orders";
 
 function App() {
 
@@ -21,7 +21,12 @@ function App() {
 
     // State to track the list of products
     const [hasVisitedCustomers, setHasVisitedCustomers] =
-    useState(false);
+        useState(false);
+
+    //state to track the list of orders
+    const [hasVisitedOrders, setHasVisitedOrders] =
+        useState(false);
+
 
 
     //Effects
@@ -65,6 +70,13 @@ function App() {
         setHasVisitedCustomers(true);
         setActiveScreen("customers");
     }
+
+    // Navigation handler: opens the Orders screen
+    function handleOrdersNavigation(): void {
+        setHasVisitedOrders(true);
+        setActiveScreen("orders");
+    }
+
 
 
     return (
@@ -122,6 +134,23 @@ function App() {
                     >
                         Customers
                     </button>
+
+                    <button
+                        type="button"
+                        className={
+                            activeScreen === "orders"
+                                ? "screen-nav-button active"
+                                : "screen-nav-button"
+                        }
+                        aria-current={
+                            activeScreen === "orders"
+                                ? "page"
+                                : undefined
+                        }
+                        onClick={handleOrdersNavigation}
+                    >
+                        Orders
+                </button>
                 </nav>
 
                 <div
@@ -155,6 +184,14 @@ function App() {
                 {hasVisitedCustomers && (
                     <div hidden={activeScreen !== "customers"}>
                         <CustomersPage />
+                    </div>
+                )}
+
+                {hasVisitedOrders && (
+                    <div hidden={activeScreen !== "orders"}>
+                        <OrdersPage
+                            isActive={activeScreen === "orders"}
+                        />
                     </div>
                 )}
             </main>
