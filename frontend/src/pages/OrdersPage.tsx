@@ -1,16 +1,21 @@
 import { useEffect, useState } from "react";
 import { getCustomers } from "../services/customerService";
+import { getProducts } from "../services/productService";   
 import OrderCard from "../components/OrderCard";
+import OrderForm from "../components/OrderForm";
 
 import type {
     Customer,
     Order,
     OrderQueryParams,
-    OrderStatus
+    OrderStatus,
+    Product,
+    CreateOrderRequest
 } from "../types";
 import {
     getOrders,
-    getOrderById
+    getOrderById,
+    createOrder
 } from "../services/orderService";
 
 
@@ -47,11 +52,20 @@ function OrdersPage({ isActive }: OrdersPageProps) {
     const [totalPages, setTotalPages] = 
         useState(0);
 
+
     // Customers lookup data
     const [customers, setCustomers] = 
         useState<Customer[]>([]);
     const [customersError, setCustomersError] =
         useState<string | null>(null);
+
+    // Products lookup data
+    const [products, setProducts] = useState<Product[]>([]);
+    const [hasLoadedProducts, setHasLoadedProducts] =
+        useState(false);
+    const [productsError, setProductsError] =
+        useState<string | null>(null);
+
 
     // Loading and error states
     const [isLoading, setIsLoading] = 
@@ -61,37 +75,56 @@ function OrdersPage({ isActive }: OrdersPageProps) {
     const [loadError, setLoadError] = 
         useState<string | null>(null);
 
+        // Customers loading state
+    const [hasLoadedCustomers, setHasLoadedCustomers] =
+        useState(false);
+
+
     // Pagination + filters
     const [page, setPage] = 
         useState(1);
     const [pageSize, setPageSize] = 
         useState(10);
-
     const [customerFilter, setCustomerFilter] = 
         useState("");
     const [statusFilter, setStatusFilter] =
         useState<OrderStatus | "All">("All");   // Default to "All" to show all orders regardless of status (Το "All" είναι επιλογή του frontend. Δεν θα το στείλουμε στο backend ως status filter.)
-
     const [fromDate, setFromDate] = 
         useState("");
     const [toDate, setToDate] = 
         useState("");
-
     const [sortDirection, setSortDirection] =
         useState<"asc" | "desc">("desc");
 
     // Selected order details
     const [selectedOrderId, setSelectedOrderId] =   //αναγνωρίζει ποια παραγγελία επέλεξε ο χρήστης
         useState<number | null>(null);
-
     const [selectedOrder, setSelectedOrder] =   //αποθηκεύει τα πλήρη στοιχεία που επιστρέφει το getOrderById()
         useState<Order | null>(null);
-
     const [isDetailsLoading, setIsDetailsLoading] =
         useState(false);
-
     const [detailsError, setDetailsError] =
         useState<string | null>(null);
+
+
+        // Refresh triggers (Αποθηκεύουμε έναν αριθμό που θα λειτουργεί ως trigger για το αντίστοιχο useEffect. 
+        // Αν ο αριθμός αλλάξει από 0 σε 1, το effect θα εκτελεστεί ξανά, επειδή έχει αλλάξει dependency.)
+    const [productsRefreshKey, setProductsRefreshKey] =
+        useState(0);
+    const [customersRefreshKey, setCustomersRefreshKey] =
+        useState(0);
+    const [ordersRefreshKey, setOrdersRefreshKey] =
+        useState(0);
+
+
+    // Create Order state
+    const [isCreateFormOpen, setIsCreateFormOpen] =
+        useState(false);
+    const [isCreatingOrder, setIsCreatingOrder] =
+        useState(false);
+    const [createOrderSuccess, setCreateOrderSuccess] =
+        useState<string | null>(null);
+
 
 
     // Event handlers
@@ -180,6 +213,53 @@ function OrdersPage({ isActive }: OrdersPageProps) {
         prepareForOrdersReload();
         setStatusFilter(value as OrderStatus | "All");
         setPage(1);
+    }
+
+    // Event handler: creates a new order
+    async function handleCreateOrder(
+        request: CreateOrderRequest
+    ): Promise<Order> {
+        setIsCreatingOrder(true);
+        try {
+            const createdOrder = await createOrder(request);            // Create the order through the backend
+            setCreateOrderSuccess(
+                `Order #${createdOrder.id} was created successfully.`
+            );
+            // Reset filters so the new Pending order is visible
+            setCustomerFilter("");
+            setStatusFilter("All");
+            setFromDate("");
+            setToDate("");
+            setSortDirection("desc");
+            setPage(1);
+            // Trigger an Orders refresh
+            setIsLoading(true);
+            setHasLoadedOrders(false);
+            setLoadError(null);
+            setOrdersRefreshKey(
+                (currentValue) => currentValue + 1
+            );
+            // Select the newly created order
+            setSelectedOrderId(createdOrder.id);
+            setSelectedOrder(null);
+            setDetailsError(null);
+            setIsDetailsLoading(true);
+            // Refresh products because their stock has changed
+            setProductsError(null);
+            setProductsRefreshKey(
+                (currentValue) => currentValue + 1
+            );
+            return createdOrder;
+        } catch (error: unknown) {
+            // Refresh Products even after a failed request,
+            // because stock may have changed due to another user.
+            setProductsRefreshKey(
+                (currentValue) => currentValue + 1
+            );
+            throw error;
+        } finally {
+            setIsCreatingOrder(false);
+        }
     }
 
     // Event handler: resets all order filters
@@ -272,7 +352,8 @@ function OrdersPage({ isActive }: OrdersPageProps) {
         statusFilter,
         fromDate,
         toDate,
-        sortDirection
+        sortDirection,
+        ordersRefreshKey
     ]);
 
     // Effect: load customers for the order customer lookup
@@ -290,6 +371,7 @@ function OrdersPage({ isActive }: OrdersPageProps) {
                 if (!ignore) {
                     setCustomers(loadedCustomers);
                     setCustomersError(null);
+                    setHasLoadedCustomers(true);
                 }
             } catch (error: unknown) {
                 if (!ignore) {
@@ -298,6 +380,7 @@ function OrdersPage({ isActive }: OrdersPageProps) {
                             ? error.message
                             : "Could not load customers.";
                     setCustomersError(message);
+                    setHasLoadedCustomers(true);
                 }
             }
         }
@@ -305,7 +388,38 @@ function OrdersPage({ isActive }: OrdersPageProps) {
         return () => {
             ignore = true;
         };
-    }, [isActive]);
+    }, [isActive, customersRefreshKey]);
+
+    // Effect: load products needed for order creation
+    useEffect(() => {
+        if (!isActive) {
+            return;
+        }
+        let ignore = false;
+        async function loadProducts(): Promise<void> {
+            try {
+                const loadedProducts = await getProducts();
+                if (!ignore) {
+                    setProducts(loadedProducts);
+                    setProductsError(null);
+                    setHasLoadedProducts(true);
+                }
+            } catch (error: unknown) {
+                if (!ignore) {
+                    const message =
+                        error instanceof Error
+                            ? error.message
+                            : "Could not load products.";
+                    setProductsError(message);
+                    setHasLoadedProducts(true);
+                }
+            }
+        }
+        loadProducts();
+        return () => {
+            ignore = true;
+        };
+    }, [isActive, productsRefreshKey]);
 
     // Effect: load the details of the selected order
     useEffect(() => {
@@ -374,8 +488,121 @@ function OrdersPage({ isActive }: OrdersPageProps) {
 
                 </div>
 
+                <button
+                    className="submit-button"
+                    type="button"
+                    onClick={() => {
+                        if (isCreateFormOpen) {
+                            setIsCreateFormOpen(false);
+                        } else {
+                            setCreateOrderSuccess(null);
+                            setIsCreateFormOpen(true);
+                        }
+                    }}
+                >
+                    {isCreateFormOpen
+                        ? "Close form"
+                        : "Create order"}
+                </button>
             </section>
 
+            {createOrderSuccess !== null && (
+
+                <p className="form-success" role="status">
+                    {createOrderSuccess}
+                </p>
+
+            )}
+
+            {isCreateFormOpen && (
+
+                <div className="orders-create-section">
+
+                    {!hasLoadedCustomers || !hasLoadedProducts ? (
+
+                        <p className="catalog-message">
+                            Loading customers and products...
+                        </p>
+
+                    ) : customersError !== null || productsError !== null ? (
+
+                        <div className="catalog-error" role="alert">
+
+                            <h3>Could not load order form data</h3>
+
+                            {customersError !== null && (
+                                <p>{customersError}</p>
+                            )}
+
+                            {productsError !== null && (
+                                <p>{productsError}</p>
+                            )}
+
+
+                            <button
+                                className="filter-button"
+                                type="button"
+                                onClick={() => {
+
+                                    setCustomersError(null);
+                                    setProductsError(null);
+
+                                    setHasLoadedCustomers(false);
+                                    setHasLoadedProducts(false);
+
+                                    setCustomersRefreshKey(
+                                        (currentValue) => currentValue + 1
+                                    );
+
+                                    setProductsRefreshKey(
+                                        (currentValue) => currentValue + 1
+                                    );
+                                }}
+                            >
+                                Retry
+                            </button>
+
+                        </div>
+
+                    ) : customers.length === 0 ? (
+
+                        <div className="empty-state">
+
+                            <h3>No customers available</h3>
+
+                            <p>
+                                Create a customer before creating an order.
+                            </p>
+
+                        </div>
+
+                    ) : products.length === 0 ? (
+
+                        <div className="empty-state">
+
+                            <h3>No products available</h3>
+
+                            <p>
+                                Create products before creating an order.
+                            </p>
+
+                        </div>
+
+                    ) : (
+
+                        <OrderForm
+                            customers={customers}
+                            products={products}
+                            onCreateOrder={handleCreateOrder}
+                            onCancel={() => setIsCreateFormOpen(false)}
+                            isSubmitting={isCreatingOrder}
+                        />
+
+                    )}
+
+                </div>
+
+            )}
 
             {/* Filters */}
 

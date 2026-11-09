@@ -5,7 +5,8 @@ import type {
     OrderItem,
     OrderQueryParams,
     PagedResponse,
-    OrderStatus
+    OrderStatus,
+    CreateOrderRequest
 } from "../types";
 
 
@@ -209,6 +210,66 @@ export async function getOrderById(
     if (data.id !== orderId) {
         throw new Error(
             "The API returned an unexpected order."
+        );
+    }
+    return data;
+}
+
+// (POST) creates a new order
+export async function createOrder(
+    request: CreateOrderRequest
+): Promise<Order> {
+    if (        //Validates customer ID
+        !Number.isInteger(request.customerId) ||
+        request.customerId <= 0
+    ) {
+        throw new Error("Invalid customer ID.");
+    }
+    if (!Array.isArray(request.items) || request.items.length === 0) {      // Validates that the order contains at least one item
+        throw new Error(
+            "An order must contain at least one product."
+        );
+    }
+    const productIds = new Set<number>();
+    for (const item of request.items) {
+        if (
+            !Number.isInteger(item.productId) ||
+            item.productId <= 0
+        ) {
+            throw new Error("Invalid product ID.");
+        }
+        if (
+            !Number.isInteger(item.quantity) ||
+            item.quantity <= 0
+        ) {
+            throw new Error(
+                "Product quantities must be positive integers."
+            );
+        }
+        if (productIds.has(item.productId)) {               // Prevent duplicate product IDs
+            throw new Error(
+                "An order cannot contain duplicate products."
+            );
+        }
+        productIds.add(item.productId);
+    }
+    // Send POST request
+    const response = await apiRequest(
+        "/api/v1/orders",
+        {
+            method: "POST",
+            body: JSON.stringify(request)
+        }
+    );
+    const data: unknown = await response.json();        // Read API response
+    if (!isOrder(data)) {       // Validate the returned Order
+        throw new Error(
+            "The API returned an order with an invalid structure."
+        );
+    }
+    if (data.customerId !== request.customerId) {   // Verify the returned customer ID
+        throw new Error(
+            "The API returned an unexpected customer."
         );
     }
     return data;
