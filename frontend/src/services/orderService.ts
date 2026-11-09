@@ -274,3 +274,35 @@ export async function createOrder(
     }
     return data;
 }
+
+    // (POST : CONFIRM) confirms an existing order
+    export async function confirmOrder(
+        orderId: number
+    ): Promise<void> {
+        // Validate order ID
+        if (!Number.isInteger(orderId) || orderId <= 0) {
+            throw new Error("Invalid order ID.");
+        }
+        await apiRequest(
+            `/api/v1/orders/${orderId}/confirm`,
+            {
+                method: "POST"
+            }
+        );
+    }
+
+    // (POST : CANCEL) cancels an existing order
+    export async function cancelOrder(
+        orderId: number
+    ): Promise<void> {
+        // Validate order ID
+        if (!Number.isInteger(orderId) || orderId <= 0) {
+            throw new Error("Invalid order ID.");
+        }
+        await apiRequest(
+            `/api/v1/orders/${orderId}/cancel`,
+            {
+                method: "POST"
+            }
+        );
+    }

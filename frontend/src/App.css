@@ -1559,3 +1559,101 @@
     }
 
 }
+
+.order-actions {
+    display: grid;
+    gap: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid #e2e8f0;
+}
+
+.order-actions h3 {
+    margin: 0;
+    color: #243b67;
+}
+
+.order-action-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
+.order-action-buttons button {
+    width: auto;
+    margin: 0;
+}
+
+.confirm-order-button {
+    width: auto;
+    margin: 0;
+    padding: 0.7rem 1rem;
+    border: 1px solid #166534;
+    border-radius: 0.5rem;
+    background: #166534;
+    color: #ffffff;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.confirm-order-button:hover {
+    background: #14532d;
+}
+
+.cancel-order-button {
+    width: auto;
+    margin: 0;
+    padding: 0.7rem 1rem;
+    border: 1px solid #dc2626;
+    border-radius: 0.5rem;
+    background: #dc2626;
+    color: #ffffff;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.cancel-order-button:hover {
+    background: #b91c1c;
+}
+
+.order-action-confirmation {
+    display: grid;
+    gap: 1rem;
+    padding: 1rem;
+    border: 1px solid #dbe3ef;
+    border-radius: 0.7rem;
+    background: #f8fafc;
+}
+
+.order-action-confirmation p {
+    margin: 0;
+    color: #334155;
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+.order-action-confirmation-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.65rem;
+}
+
+.order-action-confirmation-buttons button {
+    width: auto;
+    margin: 0;
+}
+
+.order-action-confirmation button:disabled,
+.order-action-buttons button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.order-cancelled-message {
+    margin: 0;
+    padding: 0.8rem;
+    border-radius: 0.5rem;
+    background: #fee2e2;
+    color: #991b1b;
+    font-size: 0.9rem;
+    font-weight: 600;
+}

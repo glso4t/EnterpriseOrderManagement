@@ -15,7 +15,9 @@ import type {
 import {
     getOrders,
     getOrderById,
-    createOrder
+    createOrder,
+    confirmOrder,
+    cancelOrder
 } from "../services/orderService";
 
 
@@ -125,6 +127,25 @@ function OrdersPage({ isActive }: OrdersPageProps) {
     const [createOrderSuccess, setCreateOrderSuccess] =
         useState<string | null>(null);
 
+    // Tracks the order action waiting for confirmation
+    const [pendingOrderAction, setPendingOrderAction] =
+        useState<{
+            orderId: number;
+            action: "confirm" | "cancel";
+        } | null>(null);
+
+    // Tracks whether an order action is being processed
+    const [isProcessingOrderAction, setIsProcessingOrderAction] =
+        useState(false);
+
+    // Stores order action errors
+    const [orderActionError, setOrderActionError] =
+        useState<string | null>(null);
+
+    // Triggers a refresh of the selected order details
+    const [orderDetailsRefreshKey, setOrderDetailsRefreshKey] =
+        useState(0);
+
 
 
     // Event handlers
@@ -140,6 +161,8 @@ function OrdersPage({ isActive }: OrdersPageProps) {
         setSelectedOrder(null);
         setIsDetailsLoading(false);
         setDetailsError(null);
+        setPendingOrderAction(null);
+        setOrderActionError(null);
     }
 
     // Event handler for changing the customer filter
@@ -204,6 +227,8 @@ function OrdersPage({ isActive }: OrdersPageProps) {
         setSelectedOrder(null);
         setDetailsError(null);
         setIsDetailsLoading(true);
+        setPendingOrderAction(null);
+        setOrderActionError(null);
     }
 
     // Event handler for changing the status filter
@@ -285,6 +310,76 @@ function OrdersPage({ isActive }: OrdersPageProps) {
         setPageSize(10);
     }
 
+    // Event handler: requests confirmation for an order action
+    function handleStartOrderAction(
+        orderId: number,
+        action: "confirm" | "cancel"
+    ): void {
+        if (isProcessingOrderAction) {
+            return;
+        }
+        setOrderActionError(null);
+        setPendingOrderAction({
+            orderId,
+            action
+        });
+    }
+
+    // Event handler: confirms or cancels an order
+    async function handleExecuteOrderAction(): Promise<void> {
+        if (
+            pendingOrderAction === null ||
+            isProcessingOrderAction
+        ) {
+            return;
+        }
+        const { orderId, action } = pendingOrderAction;
+        setIsProcessingOrderAction(true);
+        setOrderActionError(null);
+        try {
+            // Execute the requested backend action
+            if (action === "confirm") {
+                await confirmOrder(orderId);
+            } else {
+                await cancelOrder(orderId);
+            }
+            // Close the confirmation interface
+            setPendingOrderAction(null);
+            // Clear the old selected order details
+            setSelectedOrder(null);
+            setDetailsError(null);
+            setIsDetailsLoading(true);
+            // Refresh the orders list
+            setIsLoading(true);
+            setHasLoadedOrders(false);
+            setLoadError(null);
+            // Reset status filter so the updated order remains visible
+            setStatusFilter("All");
+            setPage(1);
+            setOrdersRefreshKey(
+                (currentValue) => currentValue + 1
+            );
+            // Reload the selected order details
+            setOrderDetailsRefreshKey(
+                (currentValue) => currentValue + 1
+            );
+            // Cancellation restores stock, so refresh products
+            if (action === "cancel") {
+                setProductsError(null);
+                setProductsRefreshKey(
+                    (currentValue) => currentValue + 1
+                );
+            }
+        } catch (error: unknown) {
+            const message =
+                error instanceof Error
+                    ? error.message
+                    : "An unexpected error occurred.";
+            setOrderActionError(message);
+        } finally {
+            setIsProcessingOrderAction(false);
+        }
+    }
 
 
 
@@ -453,7 +548,7 @@ function OrdersPage({ isActive }: OrdersPageProps) {
         return () => {
             ignore = true;
         };
-    }, [isActive, selectedOrderId]);
+    }, [isActive, selectedOrderId, orderDetailsRefreshKey]);
 
     return (
 
@@ -1085,6 +1180,135 @@ function OrdersPage({ isActive }: OrdersPageProps) {
                                                 selectedOrder.totalAmount
                                             )}
                                         </strong>
+
+                                    </div>
+
+                                    <div className="order-actions">
+
+                                        <h3>Order Actions</h3>
+
+                                        {/* Available actions based on current order status */}
+
+                                        <div className="order-action-buttons">
+
+                                            {selectedOrder.status === "Pending" && (
+
+                                                <button
+                                                    className="confirm-order-button"
+                                                    type="button"
+                                                    onClick={() =>
+                                                        handleStartOrderAction(
+                                                            selectedOrder.id,
+                                                            "confirm"
+                                                        )
+                                                    }
+                                                    disabled={isProcessingOrderAction}
+                                                >
+                                                    Confirm order
+                                                </button>
+
+                                            )}
+
+                                            {(selectedOrder.status === "Pending" ||
+                                                selectedOrder.status === "Confirmed") && (
+
+                                                <button
+                                                    className="cancel-order-button"
+                                                    type="button"
+                                                    onClick={() =>
+                                                        handleStartOrderAction(
+                                                            selectedOrder.id,
+                                                            "cancel"
+                                                        )
+                                                    }
+                                                    disabled={isProcessingOrderAction}
+                                                >
+                                                    Cancel order
+                                                </button>
+
+                                            )}
+
+                                        </div>
+
+
+                                        {/* Confirmation interface */}
+
+                                        {pendingOrderAction?.orderId === selectedOrder.id && (
+
+                                            <div className="order-action-confirmation">
+
+                                                <p>
+
+                                                    {pendingOrderAction.action === "confirm"
+                                                        ? "Are you sure you want to confirm this order?"
+                                                        : "Are you sure you want to cancel this order? The reserved stock will be returned to inventory."}
+
+                                                </p>
+
+
+                                                <div className="order-action-confirmation-buttons">
+
+                                                    <button
+                                                        className={
+                                                            pendingOrderAction.action === "confirm"
+                                                                ? "confirm-order-button"
+                                                                : "cancel-order-button"
+                                                        }
+                                                        type="button"
+                                                        onClick={handleExecuteOrderAction}
+                                                        disabled={isProcessingOrderAction}
+                                                    >
+                                                        {isProcessingOrderAction
+                                                            ? "Processing..."
+                                                            : pendingOrderAction.action === "confirm"
+                                                                ? "Confirm"
+                                                                : "Confirm cancellation"}
+                                                    </button>
+
+
+                                                    <button
+                                                        className="filter-button"
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setPendingOrderAction(null);
+                                                            setOrderActionError(null);
+                                                        }}
+                                                        disabled={isProcessingOrderAction}
+                                                    >
+                                                        Go back
+                                                    </button>
+
+                                                </div>
+
+                                            </div>
+
+                                        )}
+
+
+                                        {/* Action errors */}
+
+                                        {orderActionError !== null && (
+
+                                            <div className="form-errors" role="alert">
+
+                                                <p>Order action failed.</p>
+
+                                                <p>{orderActionError}</p>
+
+                                            </div>
+
+                                        )}
+
+
+                                        {/* Cancelled order message */}
+
+                                        {selectedOrder.status === "Cancelled" && (
+
+                                            <p className="order-cancelled-message">
+                                                This order has been cancelled.
+                                            </p>
+
+                                        )}
 
                                     </div>
 
