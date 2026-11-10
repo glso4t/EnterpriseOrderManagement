@@ -1657,3 +1657,103 @@
     font-size: 0.9rem;
     font-weight: 600;
 }
+
+/* Application Layout */
+
+.app-shell {
+    min-height: 100vh;
+}
+
+.app-shell-header {
+    padding: 1.5rem 2rem 1rem;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.app-shell-header-content {
+    max-width: 1200px;
+    margin: 0 auto;
+
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+}
+
+.app-shell-title {
+    margin: 0;
+    font-size: 1.5rem;
+}
+
+.app-shell-subtitle {
+    margin: 0.5rem 0 0;
+    color: #6b7280;
+}
+
+.app-shell-status {
+    padding: 0.4rem 0.8rem;
+    border-radius: 999px;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.app-shell-status--online {
+    background-color: #dcfce7;
+    color: #166534;
+}
+
+.app-shell-status--offline {
+    background-color: #fee2e2;
+    color: #991b1b;
+}
+
+.app-shell-nav {
+    max-width: 1200px;
+    margin: 1.25rem auto 0;
+
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.app-shell-nav-link {
+    display: inline-flex;
+    align-items: center;
+
+    padding: 0.65rem 1rem;
+    border-radius: 0.5rem;
+
+    color: inherit;
+    text-decoration: none;
+
+    transition: background-color 0.2s ease;
+}
+
+.app-shell-nav-link:hover {
+    background-color: #f3f4f6;
+}
+
+.app-shell-nav-link--active {
+    background-color: #e5e7eb;
+    font-weight: 600;
+}
+
+.app-shell-main {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 1.5rem;
+}
+
+@media (max-width: 600px) {
+    .app-shell-header {
+    padding: 1rem;
+    }
+
+    .app-shell-header-content {
+    align-items: flex-start;
+    flex-direction: column;
+    }
+
+    .app-shell-main {
+    padding: 1rem;
+    }
+}
