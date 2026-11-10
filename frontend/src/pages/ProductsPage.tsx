@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 
 import ProductCard from "../components/ProductCard";
 import ProductForm from "../components/ProductForm";
+import { useAuth } from "../auth/useAuth";
 
 import {
     createProduct,
@@ -56,6 +57,10 @@ export default function ProductsPage({ isActive }: ProductsPageProps) {
     // κρατά το μήνυμα σφάλματος όταν το DELETE request αποτυγχάνει
     const [deleteError, setDeleteError] =
         useState<string | null>(null);
+
+    const { user } = useAuth();
+
+    const isAdmin = user?.role === "Admin";
 
 
     //Effects
@@ -307,7 +312,9 @@ return (
                 <small>{inStockCount} with stock</small>
             </div>
         </section>
-        <ProductForm onAddProduct={handleAddProduct} />
+        {isAdmin && (
+            <ProductForm onAddProduct={handleAddProduct} />
+        )}
         <section
             className="catalog-section" aria-labelledby="products-heading">
             <div className="section-heading">
@@ -409,6 +416,7 @@ return (
                             <ProductCard
                                 key={product.id}
                                 product={product}
+                                isAdmin={isAdmin}
                                 onRestock={handleRestock}
                                 onRemoveStock={handleRemoveStock}
                                 onUpdate={handleUpdateProduct}

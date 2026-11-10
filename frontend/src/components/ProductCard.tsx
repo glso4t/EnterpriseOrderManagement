@@ -4,6 +4,7 @@ import type { Product, UpdateProductRequest } from "../types";
 
 interface ProductCardProps {
     product: Product;
+    isAdmin: boolean;
     onRestock: (productId: number) => Promise<void>;
     onRemoveStock: (productId: number) => Promise<void>;
     onDelete: (productId: number) => Promise<void>;
@@ -14,6 +15,7 @@ interface ProductCardProps {
 
 export default function ProductCard({
     product,
+    isAdmin,
     onRestock,
     onRemoveStock,
     onDelete,
@@ -37,13 +39,14 @@ export default function ProductCard({
     }
 
     function handleDelete(): void {
-    const confirmed = window.confirm(
-        `Are you sure you want to delete "${product.name}"?`
-    );
-    if (confirmed) {
-        void onDelete(product.id);
+        const confirmed = window.confirm(
+            `Are you sure you want to delete "${product.name}"?`
+        );
+
+        if (confirmed) {
+            void onDelete(product.id);
+        }
     }
-}
 
     return (
         <article className="product-card">
@@ -77,51 +80,60 @@ export default function ProductCard({
                     <span>units</span>
                 </div>
             </div>
-            <div className="stock-actions">
-                <button
-                    className="restock-button"
-                    type="button"
-                    disabled={isUpdating || isDeleting || isEditing}
-                    onClick={() => void onRestock(product.id)}
-                >
-                    {isUpdating ? "Updating..." : "Restock +1"}
-                </button>
-                <button
-                    className="restock-button"
-                    type="button"
-                    disabled={isUpdating || isDeleting ||  product.stock === 0 || isEditing}
-                    onClick={() => void onRemoveStock(product.id)}
-                >
-                    {isUpdating ? "Updating..." : "Remove -1"}
-                </button>
 
-                {isEditing ? (
-                    <ProductEditForm
-                        product={product}
-                        onSave={onUpdate}
-                        onCancel={() => setIsEditing(false)}
-                        isSaving={isUpdating}
-                    />
-                ) : (
+            {isAdmin && (
+                <div className="stock-actions">
                     <button
-                        className="edit-button"
+                        className="restock-button"
                         type="button"
-                        disabled={isUpdating || isDeleting}
-                        onClick={() => setIsEditing(true)}
+                        disabled={isUpdating || isDeleting || isEditing}
+                        onClick={() => void onRestock(product.id)}
                     >
-                        Edit 
+                        {isUpdating ? "Updating..." : "Restock +1"}
                     </button>
-                )}
 
-                <button
-                    className="delete-button"
-                    type="button"
-                    disabled={isUpdating || isDeleting || isEditing}
-                    onClick={handleDelete}
-                >
-                    {isDeleting ? "Deleting..." : "Delete"}
-                </button>
-            </div>
+                    <button
+                        className="restock-button"
+                        type="button"
+                        disabled={
+                            isUpdating ||
+                            isDeleting ||
+                            product.stock === 0 ||
+                            isEditing
+                        }
+                        onClick={() => void onRemoveStock(product.id)}
+                    >
+                        {isUpdating ? "Updating..." : "Remove -1"}
+                    </button>
+
+                    {isEditing ? (
+                        <ProductEditForm
+                            product={product}
+                            onSave={onUpdate}
+                            onCancel={() => setIsEditing(false)}
+                            isSaving={isUpdating}
+                        />
+                    ) : (
+                        <button
+                            className="edit-button"
+                            type="button"
+                            disabled={isUpdating || isDeleting}
+                            onClick={() => setIsEditing(true)}
+                        >
+                            Edit
+                        </button>
+                    )}
+
+                    <button
+                        className="delete-button"
+                        type="button"
+                        disabled={isUpdating || isDeleting || isEditing}
+                        onClick={handleDelete}
+                    >
+                        {isDeleting ? "Deleting..." : "Delete"}
+                    </button>
+                </div>
+            )}
         </article>
     );
 }

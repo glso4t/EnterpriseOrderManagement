@@ -1,5 +1,6 @@
+import { getStoredToken } from "../auth/tokenStorage";
+
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
-const API_TOKEN = import.meta.env.VITE_API_TOKEN;
 
 // checks if the API_BASE_URL is configured and removes any trailing slashes from the URL
 function getBaseUrl(): string {
@@ -11,20 +12,16 @@ function getBaseUrl(): string {
     return API_BASE_URL.replace(/\/+$/, "");
 }
 
-// checks if the API_TOKEN is configured and returns the headers for API requests
-function getApiHeaders(
-    includeContentType: boolean = false
-): Record<string, string> {
-    if (!API_TOKEN) {
-        throw new Error(
-            "VITE_API_TOKEN is not configured."
-        );
-    }
+// returns the headers for API requests, including the current user's stored JWT
+function getApiHeaders(hasBody: boolean): HeadersInit {
     const headers: Record<string, string> = {
-        Accept: "application/json",
-        Authorization: `Bearer ${API_TOKEN}`
+        Accept: "application/json"
     };
-    if (includeContentType) {
+    const token = getStoredToken();
+    if (token) {
+        headers.Authorization = `Bearer ${token}`;
+    }
+    if (hasBody) {
         headers["Content-Type"] = "application/json";
     }
     return headers;

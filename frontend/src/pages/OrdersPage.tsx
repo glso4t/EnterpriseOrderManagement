@@ -3,6 +3,7 @@ import { getCustomers } from "../services/customerService";
 import { getProducts } from "../services/productService";   
 import OrderCard from "../components/OrderCard";
 import OrderForm from "../components/OrderForm";
+import { useAuth } from "../auth/useAuth";
 
 import type {
     Customer,
@@ -43,6 +44,9 @@ const dateFormatter = new Intl.DateTimeFormat(
 
 
 function OrdersPage({ isActive }: OrdersPageProps) {
+
+    const { user } = useAuth();
+    const isAdmin = user?.role === "Admin";
 
     //states
 
@@ -315,7 +319,7 @@ function OrdersPage({ isActive }: OrdersPageProps) {
         orderId: number,
         action: "confirm" | "cancel"
     ): void {
-        if (isProcessingOrderAction) {
+        if (!isAdmin || isProcessingOrderAction) {
             return;
         }
         setOrderActionError(null);
@@ -328,6 +332,7 @@ function OrdersPage({ isActive }: OrdersPageProps) {
     // Event handler: confirms or cancels an order
     async function handleExecuteOrderAction(): Promise<void> {
         if (
+            !isAdmin ||
             pendingOrderAction === null ||
             isProcessingOrderAction
         ) {
@@ -1183,9 +1188,10 @@ function OrdersPage({ isActive }: OrdersPageProps) {
 
                                     </div>
 
-                                    <div className="order-actions">
+                                    {isAdmin && (
+                                        <div className="order-actions">
 
-                                        <h3>Order Actions</h3>
+                                            <h3>Order Actions</h3>
 
                                         {/* Available actions based on current order status */}
 
@@ -1300,17 +1306,15 @@ function OrdersPage({ isActive }: OrdersPageProps) {
                                         )}
 
 
-                                        {/* Cancelled order message */}
+                                        </div>
+                                    )}
 
-                                        {selectedOrder.status === "Cancelled" && (
-
-                                            <p className="order-cancelled-message">
-                                                This order has been cancelled.
-                                            </p>
-
-                                        )}
-
-                                    </div>
+                                    {/* Cancellation status is informational and visible to every authenticated user. */}
+                                    {selectedOrder.status === "Cancelled" && (
+                                        <p className="order-cancelled-message">
+                                            This order has been cancelled.
+                                        </p>
+                                    )}
 
                                 </div>
 

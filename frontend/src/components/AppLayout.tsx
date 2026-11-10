@@ -1,9 +1,20 @@
 import { useEffect, useState } from "react";
-import { Link, NavLink, Outlet } from "react-router";
+import { Link, NavLink, Outlet, useNavigate } from "react-router";
+import { useAuth } from "../auth/useAuth";
 
 export default function AppLayout() {
+
     const [isOnline, setIsOnline] = 
         useState(() => navigator.onLine);
+
+    const { user, logout } = useAuth();
+    const navigate = useNavigate();
+
+
+    function handleLogout(): void {
+        logout();
+        navigate("/login", { replace: true });
+    }
 
 
     useEffect(() => {
@@ -97,6 +108,20 @@ export default function AppLayout() {
                 <div className="environment-label">
                     <span className="status-dot"></span>
                     React frontend demo 2026 v1.0.0
+                </div>
+
+                <div className="user-session">
+                    <span>
+                        {user?.role}
+                    </span>
+
+                    <button
+                        type="button"
+                        className="screen-nav-button"
+                        onClick={handleLogout}
+                    >
+                        Logout
+                    </button>
                 </div>
 
             </header>
