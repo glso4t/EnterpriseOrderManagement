@@ -1,11 +1,13 @@
 using EnterpriseOrderManagement.Api.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+
 
 namespace EnterpriseOrderManagement.Api.Data;
 
 public class EnterpriseOrderManagementDbContext(
     DbContextOptions<EnterpriseOrderManagementDbContext> options)
-    : DbContext(options)
+    : IdentityDbContext<ApplicationUser>(options)
 {
     public DbSet<Product> Products => Set<Product>();
 

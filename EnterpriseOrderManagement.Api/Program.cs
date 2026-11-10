@@ -1,21 +1,25 @@
-
 using EnterpriseOrderManagement.Api.Repositories;
 using EnterpriseOrderManagement.Api.Repositories.Interfaces;
 using EnterpriseOrderManagement.Api.Services;
 using EnterpriseOrderManagement.Api.Services.Interfaces;
+using EnterpriseOrderManagement.Api.Services.Auth;
 using EnterpriseOrderManagement.Api.Data;
 using EnterpriseOrderManagement.Api.Middleware;
 using EnterpriseOrderManagement.Api.Configuration;
 using EnterpriseOrderManagement.Api.OpenApi;
+using EnterpriseOrderManagement.Api.Models;
 using System.Threading.RateLimiting;
-using Microsoft.AspNetCore.OpenApi;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Text;
 
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 
 const string FrontendCorsPolicy = "FrontendPolicy";
-
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -42,11 +46,75 @@ builder.Services.AddOpenApi(options =>
         BearerSecurityRequirementTransformer>();
 });
 
-// JWT Authentication: Αναγνώριση του χρήστη μέσω JWT Bearer
+// --- 1. JWT Settings Registration (Μετακινήθηκε εδώ για να είναι διαθέσιμο στο AddAuthentication) ---
+var jwtSettings = builder.Configuration
+    .GetSection(JwtSettings.SectionName)
+    .Get<JwtSettings>()
+    ?? throw new InvalidOperationException(
+        "JWT settings are missing."
+    );
+
+if (Encoding.UTF8.GetByteCount(jwtSettings.SecretKey) < 32)
+{
+    throw new InvalidOperationException(
+        "JWT SecretKey must contain at least 32 bytes."
+    );
+}
+
+if (string.IsNullOrWhiteSpace(jwtSettings.Issuer) ||
+    string.IsNullOrWhiteSpace(jwtSettings.Audience) ||
+    jwtSettings.AccessTokenExpirationMinutes <= 0)
+{
+    throw new InvalidOperationException(
+        "JWT configuration is invalid."
+    );
+}
+
+builder.Services.Configure<JwtSettings>(
+    builder.Configuration.GetSection(JwtSettings.SectionName)
+);
+
+builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
+
+
+// --- 2. JWT Bearer Authentication & Validation (Αντικατάσταση του παλιού άδειου AddJwtBearer) ---
 builder.Services
-    .AddAuthentication(
-        JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer();
+    .AddAuthentication(options =>
+    {
+        options.DefaultAuthenticateScheme =
+            JwtBearerDefaults.AuthenticationScheme;
+
+        options.DefaultChallengeScheme =
+            JwtBearerDefaults.AuthenticationScheme;
+    })
+    .AddJwtBearer(options =>
+    {
+        options.MapInboundClaims = false;
+
+        options.TokenValidationParameters =
+            new TokenValidationParameters
+            {
+                ValidateIssuerSigningKey = true,
+
+                IssuerSigningKey = new SymmetricSecurityKey(
+                    Encoding.UTF8.GetBytes(jwtSettings.SecretKey)
+                ),
+
+                ValidateIssuer = true,
+                ValidIssuer = jwtSettings.Issuer,
+
+                ValidateAudience = true,
+                ValidAudience = jwtSettings.Audience,
+
+                ValidateLifetime = true,
+
+                ClockSkew = TimeSpan.FromSeconds(30),
+
+                NameClaimType = JwtRegisteredClaimNames.Sub,
+
+                RoleClaimType = "role"
+            };
+    });
 
 // Authorization: Έλεγχος δικαιωμάτων
 builder.Services.AddAuthorization(options =>
@@ -113,6 +181,35 @@ builder.Services.AddDbContext<EnterpriseOrderManagementDbContext>(
         options.UseSqlServer(
             builder.Configuration.GetConnectionString(
                 "DefaultConnection")));
+
+//identity registration
+builder.Services
+    .AddIdentity<ApplicationUser, IdentityRole>(options =>
+    {
+        // User configuration
+        options.User.RequireUniqueEmail = true;
+
+        // Password configuration
+        options.Password.RequiredLength = 8;
+        options.Password.RequireDigit = true;
+        options.Password.RequireLowercase = true;
+        options.Password.RequireUppercase = true;
+        options.Password.RequireNonAlphanumeric = false;
+
+        // Account lockout
+        options.Lockout.DefaultLockoutTimeSpan =
+            TimeSpan.FromMinutes(5);
+
+        options.Lockout.MaxFailedAccessAttempts = 5;
+
+        options.Lockout.AllowedForNewUsers = true;
+
+        // Development: email confirmation is not yet implemented.
+        options.SignIn.RequireConfirmedEmail = false;
+    })
+    .AddEntityFrameworkStores<EnterpriseOrderManagementDbContext>()
+    .AddDefaultTokenProviders();
+
 
 //inventory settings
 builder.Services.Configure<InventorySettings>(
@@ -186,6 +283,11 @@ if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
 }
+
+await IdentitySeeder.SeedAsync(
+    app.Services,
+    app.Configuration
+);
 
 app.Run();
 
