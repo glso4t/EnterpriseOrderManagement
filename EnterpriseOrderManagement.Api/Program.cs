@@ -1,3 +1,4 @@
+
 using EnterpriseOrderManagement.Api.Repositories;
 using EnterpriseOrderManagement.Api.Repositories.Interfaces;
 using EnterpriseOrderManagement.Api.Services;
@@ -8,9 +9,9 @@ using EnterpriseOrderManagement.Api.Middleware;
 using EnterpriseOrderManagement.Api.Configuration;
 using EnterpriseOrderManagement.Api.OpenApi;
 using EnterpriseOrderManagement.Api.Models;
+
 using System.Threading.RateLimiting;
 using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
 using System.Text;
 
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -23,10 +24,10 @@ const string FrontendCorsPolicy = "FrontendPolicy";
 
 var builder = WebApplication.CreateBuilder(args);
 
-//controllers
+// Controllers
 builder.Services.AddControllers();
 
-//OpenAPI documentation
+// OpenAPI documentation
 builder.Services.AddOpenApi(options =>
 {
     options.AddDocumentTransformer((document, context, cancellationToken) =>
@@ -38,15 +39,19 @@ builder.Services.AddOpenApi(options =>
             Description =
                 "REST API for managing Products, Customers and Orders."
         };
+
         return Task.CompletedTask;
     });
+
     options.AddDocumentTransformer<
         BearerSecuritySchemeTransformer>();
+
     options.AddOperationTransformer<
         BearerSecurityRequirementTransformer>();
 });
 
-// --- 1. JWT Settings Registration (Μετακινήθηκε εδώ για να είναι διαθέσιμο στο AddAuthentication) ---
+
+// JWT Settings Registration
 var jwtSettings = builder.Configuration
     .GetSection(JwtSettings.SectionName)
     .Get<JwtSettings>()
@@ -77,16 +82,9 @@ builder.Services.Configure<JwtSettings>(
 builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
 
 
-// --- 2. JWT Bearer Authentication & Validation (Αντικατάσταση του παλιού άδειου AddJwtBearer) ---
+// JWT Bearer Authentication & Validation
 builder.Services
-    .AddAuthentication(options =>
-    {
-        options.DefaultAuthenticateScheme =
-            JwtBearerDefaults.AuthenticationScheme;
-
-        options.DefaultChallengeScheme =
-            JwtBearerDefaults.AuthenticationScheme;
-    })
+    .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
         options.MapInboundClaims = false;
@@ -116,12 +114,14 @@ builder.Services
             };
     });
 
-// Authorization: Έλεγχος δικαιωμάτων
+
+// Authorization
 builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy("AdminOnly", policy =>
         policy.RequireRole("Admin"));
 });
+
 
 // CORS
 var allowedOrigins = builder.Configuration
@@ -147,11 +147,13 @@ builder.Services.AddCors(options =>
     });
 });
 
-// Rate limiting
+
+// Rate Limiting
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode =
         StatusCodes.Status429TooManyRequests;
+
     options.GlobalLimiter =
         PartitionedRateLimiter.Create<HttpContext, string>(
             httpContext =>
@@ -160,6 +162,7 @@ builder.Services.AddRateLimiter(options =>
                         httpContext.Connection.RemoteIpAddress
                             ?.ToString()
                         ?? "unknown",
+
                     factory: _ =>
                         new FixedWindowRateLimiterOptions
                         {
@@ -171,20 +174,26 @@ builder.Services.AddRateLimiter(options =>
 });
 
 
-//error handling
+// Error Handling
 builder.Services.AddProblemDetails();
+
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 
-//db
+
+// Database
 builder.Services.AddDbContext<EnterpriseOrderManagementDbContext>(
     options =>
         options.UseSqlServer(
             builder.Configuration.GetConnectionString(
-                "DefaultConnection")));
+                "DefaultConnection"))
+);
 
-//identity registration
+
+// Identity Registration
+// Important: AddIdentityCore does not override the JWT Bearer
+// authentication scheme with Identity application cookies.
 builder.Services
-    .AddIdentity<ApplicationUser, IdentityRole>(options =>
+    .AddIdentityCore<ApplicationUser>(options =>
     {
         // User configuration
         options.User.RequireUniqueEmail = true;
@@ -207,15 +216,19 @@ builder.Services
         // Development: email confirmation is not yet implemented.
         options.SignIn.RequireConfirmedEmail = false;
     })
+    .AddRoles<IdentityRole>()
     .AddEntityFrameworkStores<EnterpriseOrderManagementDbContext>()
+    .AddSignInManager()
     .AddDefaultTokenProviders();
 
 
-//inventory settings
+// Inventory Settings
 builder.Services.Configure<InventorySettings>(
     builder.Configuration.GetSection(
         InventorySettings.SectionName));
 
+
+// Product Services
 builder.Services.AddScoped<
     IProductRepository,
     ProductRepository
@@ -226,31 +239,39 @@ builder.Services.AddScoped<
     ProductService
 >();
 
+
+// Customer Services
 builder.Services.AddScoped<
-    ICustomerRepository, 
+    ICustomerRepository,
     CustomerRepository
-    >();
+>();
 
 builder.Services.AddScoped<
-    ICustomerService, 
+    ICustomerService,
     CustomerService
-    >();
+>();
 
+
+// Order Services
 builder.Services.AddScoped<
-    IOrderRepository, 
+    IOrderRepository,
     OrderRepository
-    >();
+>();
 
 builder.Services.AddScoped<
-    IOrderService, 
+    IOrderService,
     OrderService
-    >();
+>();
+
 
 var app = builder.Build();
 
-// Centralized exception handling
+
+// Centralized Exception Handling
 app.UseExceptionHandler();
+
 app.UseStatusCodePages();
+
 
 // HSTS only outside Development
 if (!app.Environment.IsDevelopment())
@@ -260,34 +281,48 @@ if (!app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-// Routing must run before CORS and endpoint-aware middleware.
+
+// Routing
 app.UseRouting();
 
-// CORS before authentication/authorization
+
+// CORS
 app.UseCors(FrontendCorsPolicy);
 
-// Limit incoming request rates
+
+// Rate Limiting
 app.UseRateLimiter();
 
-// Πρώτα αναγνωρίζουμε τον χρήστη
+
+// Authentication must run before Authorization.
 app.UseAuthentication();
 
-// και μετά ελέγχουμε τα δικαιώματά του
 app.UseAuthorization();
 
-//map endpoints
+
+// Map Controllers
 app.MapControllers();
 
-// Configure the HTTP request pipeline.
+
+// OpenAPI
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
 }
 
-await IdentitySeeder.SeedAsync(
-    app.Services,
-    app.Configuration
-);
+
+// Identity Seeding
+// Runs only in Development.
+// Integration tests use the Testing environment,
+// so seeding does not run before their database migrations.
+if (app.Environment.IsDevelopment())
+{
+    await IdentitySeeder.SeedAsync(
+        app.Services,
+        app.Configuration
+    );
+}
+
 
 app.Run();
 

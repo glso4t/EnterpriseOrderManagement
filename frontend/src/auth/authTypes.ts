@@ -11,3 +11,24 @@ export interface AuthContextType {
     login: (token: string) => void;
     logout: () => void;
 }
+
+export interface LoginRequest {
+    email: string;
+    password: string;
+}
+
+export interface RegisterRequest {
+    email: string;
+    password: string;
+}
+
+export interface AuthApiResponse {
+    accessToken: string;
+    tokenType: string;
+    expiresAtUtc: string;
+    user: {
+        id: string;
+        email: string;
+        role: UserRole;
+    };
+}

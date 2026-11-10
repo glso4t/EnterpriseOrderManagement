@@ -1,11 +1,16 @@
+
 using EnterpriseOrderManagement.Api.Data;
+
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
+
 using Microsoft.EntityFrameworkCore;
+
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.AspNetCore.Authentication;
+using Microsoft.Extensions.Hosting;
 
 namespace EnterpriseOrderManagement.Tests;
 
@@ -14,70 +19,118 @@ public sealed class SqlServerTestWebApplicationFactory
 {
     private readonly string _testConnectionString =
         $@"Server=(localdb)\MSSQLLocalDB;Database=EnterpriseOrderManagement_Tests_{Guid.NewGuid():N};Trusted_Connection=True;TrustServerCertificate=True";
+
     private bool _disposed;
 
     private bool _databaseInitialized;
 
-    protected override void ConfigureWebHost(   //Παρεμβαίνει στις ρυθμίσεις του web host και αντικαθιστά το κανονικό connection string της εφαρμογής με το προσωρινό test connection string
-        IWebHostBuilder builder)
+
+    // Configure settings BEFORE Program executes.
+    protected override IHost CreateHost(IHostBuilder builder)
     {
-        builder.ConfigureAppConfiguration(
-            (_, configuration) =>
-            {
-                configuration.AddInMemoryCollection(
-                    new Dictionary<string, string?>
-                    {
-                        ["ConnectionStrings:DefaultConnection"] =
-                            _testConnectionString
-                    });
-            });
+        builder.ConfigureHostConfiguration(configuration =>
+        {
+            configuration.AddInMemoryCollection(
+                new Dictionary<string, string?>
+                {
+                    // Isolated database for this test fixture.
+                    ["ConnectionStrings:DefaultConnection"] =
+                        _testConnectionString,
+
+                    // Test-only JWT configuration.
+                    ["Jwt:Issuer"] =
+                        "EnterpriseOrderManagement.Tests",
+
+                    ["Jwt:Audience"] =
+                        "EnterpriseOrderManagement.Tests",
+
+                    ["Jwt:SecretKey"] =
+                        "EOM-TEST-ONLY-SECRET-KEY-AT-LEAST-32-BYTES-2026",
+
+                    ["Jwt:AccessTokenExpirationMinutes"] =
+                        "15",
+
+                    // Identity seeding must not run before migrations.
+                    ["IdentitySeeding:Enabled"] = "false"
+                });
+        });
+
+        return base.CreateHost(builder);
+    }
+
+
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    {
+        builder.UseEnvironment("Testing");
 
         builder.ConfigureTestServices(services =>
         {
             services
                 .AddAuthentication(options =>
                 {
-                    options.DefaultScheme = TestAuthHandler.SchemeName;
-                    options.DefaultAuthenticateScheme = TestAuthHandler.SchemeName;
-                    options.DefaultChallengeScheme = TestAuthHandler.SchemeName;
-                    options.DefaultForbidScheme = TestAuthHandler.SchemeName;
+                    options.DefaultScheme =
+                        TestAuthHandler.SchemeName;
+
+                    options.DefaultAuthenticateScheme =
+                        TestAuthHandler.SchemeName;
+
+                    options.DefaultChallengeScheme =
+                        TestAuthHandler.SchemeName;
+
+                    options.DefaultForbidScheme =
+                        TestAuthHandler.SchemeName;
                 })
-                .AddScheme<AuthenticationSchemeOptions, TestAuthHandler>(
+                .AddScheme<
+                    AuthenticationSchemeOptions,
+                    TestAuthHandler>(
                     TestAuthHandler.SchemeName,
                     _ => { });
         });
     }
 
+
     public void InitializeDatabase()
     {
-        using var scope = Services.CreateScope();   //ανοίγει ένα dependency injection scope
+        using var scope = Services.CreateScope();
+
         var dbContext = scope.ServiceProvider
             .GetRequiredService<
-                EnterpriseOrderManagementDbContext>();  //παίρνει το Entity Framework DbContext
-        // Δημιουργεί την test database και εφαρμόζει
-        // όλες τις εκκρεμείς migrations
+                EnterpriseOrderManagementDbContext>();
+
+        // Create the test database and apply all migrations.
         dbContext.Database.Migrate();
+
         _databaseInitialized = true;
     }
 
-    protected override void Dispose(bool disposing) //cleans up resources όταν τελειώσουν τα tests
+
+    protected override void Dispose(bool disposing)
     {
-        if (_disposed) return;
+        if (_disposed)
+        {
+            return;
+        }
+
         _disposed = true;
+
         if (disposing && _databaseInitialized)
         {
             try
             {
                 using var scope = Services.CreateScope();
+
                 var db = scope.ServiceProvider
-                    .GetRequiredService<EnterpriseOrderManagementDbContext>();
+                    .GetRequiredService<
+                        EnterpriseOrderManagementDbContext>();
+
                 db.Database.EnsureDeleted();
             }
             catch (ObjectDisposedException)
             {
-                // ο host έχει ήδη γίνει dispose
+                // The host has already been disposed.
             }
         }
-        base.Dispose(disposing); // ΠΑΝΤΑ τελευταίο
+
+        base.Dispose(disposing);
     }
 }

@@ -1,6 +1,5 @@
 using EnterpriseOrderManagement.Api.Dtos.Orders;
 using EnterpriseOrderManagement.Api.Dtos.Common;
-using EnterpriseOrderManagement.Api.Dtos.Orders;
 using EnterpriseOrderManagement.Api.Models;
 using EnterpriseOrderManagement.Api.Repositories.Interfaces;
 using EnterpriseOrderManagement.Api.Services.Interfaces;
