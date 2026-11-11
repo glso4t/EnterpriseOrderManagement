@@ -19,9 +19,14 @@ import {
 
 import { AuthContext } from "./authContext";
 
+import { refreshAccessToken } from "../services/apiClient";
+import { logoutUser } from "../services/authService";
+
 import {
-    AUTH_SESSION_EXPIRED_EVENT
+    AUTH_SESSION_EXPIRED_EVENT,
+    AUTH_TOKEN_REFRESHED_EVENT
 } from "./authEvents";
+
 
 
 interface AuthProviderProps {
@@ -40,31 +45,93 @@ export function AuthProvider({
         return getUserFromToken(token);
     });
 
-    // Remove an expired or invalid stored token.
-    useEffect(() => {
-        const token = getStoredToken();
-        if (token && !getUserFromToken(token)) {
-            removeToken();
-        }
-    }, []);
+    const [isInitializing, setIsInitializing] = useState(true);
 
+    const [tokenVersion, setTokenVersion] = useState(0);
+
+
+    useEffect(() => {
+        let cancelled = false;
+        async function initializeSession(): Promise<void> {
+            const existingToken = getStoredToken();
+            if (existingToken) {
+                const existingUser =
+                    getUserFromToken(existingToken);
+                if (existingUser) {
+                    if (!cancelled) {
+                        setUser(existingUser);
+                    }
+                    if (!cancelled) {
+                        setIsInitializing(false);
+                    }
+                    return;
+                }
+            }
+            removeToken();
+            try {
+                const newToken = await refreshAccessToken();
+                if (!cancelled && newToken) {
+                    const refreshedUser =
+                        getUserFromToken(newToken);
+                    setUser(refreshedUser);
+                }
+            } catch {
+                // A temporary network error does not prove
+                // that the refresh session is invalid.
+            } finally {
+                if (!cancelled) {
+                    setIsInitializing(false);
+                }
+            }
+        }
+        void initializeSession();
+        return () => {
+            cancelled = true;
+        };
+    }, []);
 
     // Listen for session expiration events from the API layer.
     useEffect(() => {
         function handleSessionExpired(): void {
             removeToken();
             setUser(null);
+            setTokenVersion(version => version + 1);
+        }
+        function handleTokenRefreshed(): void {
+            const token = getStoredToken();
+            const refreshedUser = token
+                ? getUserFromToken(token)
+                : null;
+            setUser(refreshedUser);
+            setTokenVersion(version => version + 1);
         }
         window.addEventListener(
             AUTH_SESSION_EXPIRED_EVENT,
             handleSessionExpired
+        );
+        window.addEventListener(
+            AUTH_TOKEN_REFRESHED_EVENT,
+            handleTokenRefreshed
         );
         return () => {
             window.removeEventListener(
                 AUTH_SESSION_EXPIRED_EVENT,
                 handleSessionExpired
             );
+            window.removeEventListener(
+                AUTH_TOKEN_REFRESHED_EVENT,
+                handleTokenRefreshed
+            );
         };
+    }, []);
+
+
+    // Remove an expired or invalid stored token.
+    useEffect(() => {
+        const token = getStoredToken();
+        if (token && !getUserFromToken(token)) {
+            removeToken();
+        }
     }, []);
 
 
@@ -82,23 +149,32 @@ export function AuthProvider({
         if (expiresAt === null) {
             return;
         }
-        const remainingTime = Math.max(
+        // Try refreshing 60 seconds before expiration.
+        const refreshIn = Math.max(
             0,
-            expiresAt - Date.now()
+            expiresAt - Date.now() - 60_000
         );
         const timeoutId = window.setTimeout(
-            () => {
-                window.dispatchEvent(
-                    new Event(AUTH_SESSION_EXPIRED_EVENT)
-                );
+            async () => {
+                try {
+                    const newToken = await refreshAccessToken();
+                    if (!newToken) {
+                        window.dispatchEvent(
+                            new Event(AUTH_SESSION_EXPIRED_EVENT)
+                        );
+                    }
+                } catch {
+                    // Leave the session state unchanged
+                    // during a temporary network/server error.
+                    // The API client can retry on the next request.
+                }
             },
-            remainingTime
+            refreshIn
         );
         return () => {
             window.clearTimeout(timeoutId);
         };
-
-    }, [user]);
+    }, [user, tokenVersion]);
 
 
 
@@ -111,14 +187,21 @@ export function AuthProvider({
         setUser(authenticatedUser);
     }
 
-    function logout(): void {
-        removeToken();
-        setUser(null);
+    async function logout(): Promise<void> {
+        try {
+            await logoutUser();
+        } catch {
+            // Local logout must still happen.
+        } finally {
+            removeToken();
+            setUser(null);
+        }
     }
 
     const value: AuthContextType = {
         user,
         isAuthenticated: user !== null,
+        isInitializing,
         login,
         logout
     };

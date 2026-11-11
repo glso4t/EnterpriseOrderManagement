@@ -14,7 +14,15 @@ export default function ProtectedRoute({    //θέλουμε να εμποδίσ
     allowedRoles
 }: ProtectedRouteProps) {
 
-    const { user, isAuthenticated } = useAuth();
+    const {
+    user,
+    isAuthenticated,
+    isInitializing
+    } = useAuth();
+
+    if (isInitializing) {
+    return <p>Restoring session...</p>;
+    }
 
     // User is not authenticated.
     if (!isAuthenticated) {

@@ -10,8 +10,6 @@ import type {
 } from "../types";
 
 
-
-
 // Checks whether a value is a non-null object
 function isRecord(
     value: unknown
@@ -180,8 +178,7 @@ export async function getOrders(
     }
     const endpoint =    //Build the endpoint with query parameters
         `/api/v1/orders?${params.toString()}`;
-    const response = await apiRequest(endpoint);    //Make the API request to fetch orders
-    const data: unknown = await response.json();
+    const data = await apiRequest<unknown>(endpoint);    //Make the API request to fetch orders
     if (!isPagedResponse(data, isOrder)) {  //Validate the structure of the paginated response
         throw new Error(
             "The API returned orders with an invalid structure."
@@ -198,10 +195,9 @@ export async function getOrderById(
     if (!Number.isInteger(orderId) || orderId <= 0) {
         throw new Error("Invalid order ID.");
     }
-    const response = await apiRequest(
+    const data = await apiRequest<unknown>(
         `/api/v1/orders/${orderId}`
     );
-    const data: unknown = await response.json();
     if (!isOrder(data)) {
         throw new Error(
             "The API returned an order with an invalid structure."
@@ -254,14 +250,13 @@ export async function createOrder(
         productIds.add(item.productId);
     }
     // Send POST request
-    const response = await apiRequest(
+    const data = await apiRequest<unknown>(
         "/api/v1/orders",
         {
             method: "POST",
             body: JSON.stringify(request)
         }
     );
-    const data: unknown = await response.json();        // Read API response
     if (!isOrder(data)) {       // Validate the returned Order
         throw new Error(
             "The API returned an order with an invalid structure."
@@ -283,7 +278,7 @@ export async function createOrder(
         if (!Number.isInteger(orderId) || orderId <= 0) {
             throw new Error("Invalid order ID.");
         }
-        await apiRequest(
+        await apiRequest<void>(
             `/api/v1/orders/${orderId}/confirm`,
             {
                 method: "POST"
@@ -299,7 +294,7 @@ export async function createOrder(
         if (!Number.isInteger(orderId) || orderId <= 0) {
             throw new Error("Invalid order ID.");
         }
-        await apiRequest(
+        await apiRequest<void>(
             `/api/v1/orders/${orderId}/cancel`,
             {
                 method: "POST"

@@ -8,8 +8,9 @@ export interface AuthUser {
 export interface AuthContextType {
     user: AuthUser | null;
     isAuthenticated: boolean;
+    isInitializing: boolean;
     login: (token: string) => void;
-    logout: () => void;
+    logout: () => Promise<void>;
 }
 
 export interface LoginRequest {

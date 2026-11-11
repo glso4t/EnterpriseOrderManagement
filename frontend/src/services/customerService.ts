@@ -34,10 +34,9 @@ function mapCustomerResponse(value: unknown): Customer {
 
 // (GET) fetches the list of customers from the API and returns them as an array of Customer objects
 export async function getCustomers(): Promise<Customer[]> {
-    const response = await apiRequest(
+    const data = await apiRequest<unknown>(
         "/api/v1/customers"
     );
-    const data: unknown = await response.json();
     if (!Array.isArray(data)) {
         throw new Error(
             "Unexpected API response. Expected an array of customers."
@@ -54,10 +53,9 @@ export async function getCustomerById(
     if (!Number.isInteger(customerId) || customerId <= 0) {
         throw new Error("Invalid customer ID.");
     }
-    const response = await apiRequest(
+    const data = await apiRequest<unknown>(
         `/api/v1/customers/${customerId}`
     );
-    const data: unknown = await response.json();
     return mapCustomerResponse(data);
 }
 
@@ -65,14 +63,13 @@ export async function getCustomerById(
 export async function createCustomer(
     customerData: CreateCustomerRequest
 ): Promise<Customer> {
-    const response = await apiRequest(
+    const data = await apiRequest<unknown>(
         "/api/v1/customers",
         {
             method: "POST",
             body: JSON.stringify(customerData)
         }
     );
-    const data: unknown = await response.json();
     return mapCustomerResponse(data);
 }
 
@@ -85,14 +82,13 @@ export async function updateCustomer(
     if (!Number.isInteger(customerId) || customerId <= 0) {
         throw new Error("Invalid customer ID.");
     }
-    const response = await apiRequest(
+    const data = await apiRequest<unknown>(
         `/api/v1/customers/${customerId}`,
         {
             method: "PUT",
             body: JSON.stringify(customerData)
         }
     );
-    const data: unknown = await response.json();
     const updatedCustomer = mapCustomerResponse(data);
     // Ensure that the API returned the requested customer
     if (updatedCustomer.id !== customerId) {
@@ -111,7 +107,7 @@ export async function deleteCustomer(
     if (!Number.isInteger(customerId) || customerId <= 0) {
         throw new Error("Invalid customer ID.");
     }
-    await apiRequest(
+    await apiRequest<void>(
         `/api/v1/customers/${customerId}`,
         {
             method: "DELETE"

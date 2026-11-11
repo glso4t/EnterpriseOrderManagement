@@ -11,9 +11,11 @@ export default function AppLayout() {
     const navigate = useNavigate();
 
 
-    function handleLogout(): void {
-        logout();
-        navigate("/login", { replace: true });
+    async function handleLogout(): Promise<void> {
+        await logout();
+        navigate("/login", {
+            replace: true
+        });
     }
 
 
@@ -31,6 +33,8 @@ export default function AppLayout() {
             window.removeEventListener("offline", handleOffline);
         };
     }, []);
+
+
 
     return (
         <div className="app-shell">

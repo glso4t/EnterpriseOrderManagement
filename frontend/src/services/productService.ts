@@ -44,10 +44,9 @@ function mapProductResponse(value: unknown): Product {
 
 //(GET) fetches the list of products from the API and returns them as an array of Product objects
 export async function getProducts(): Promise<Product[]> {
-    const response = await apiRequest(
+    const data: unknown = await apiRequest<unknown>(
         "/api/v1/products"
     );
-    const data: unknown = await response.json();
     if (!Array.isArray(data)) {
         throw new Error(
             "Unexpected API response. Expected an array."
@@ -61,14 +60,13 @@ export async function getProducts(): Promise<Product[]> {
 export async function createProduct(
     request: CreateProductRequest
 ): Promise<Product> {
-    const response = await apiRequest(
+    const data: unknown = await apiRequest<unknown>(
         "/api/v1/products",
         {
             method: "POST",
             body: JSON.stringify(request)
         }
     );
-    const data: unknown = await response.json();
     return mapProductResponse(data);
 }
 
@@ -80,14 +78,13 @@ export async function patchProduct(
     if (!Number.isInteger(productId) || productId <= 0) {
         throw new Error("Invalid product ID.");
     }
-    const response = await apiRequest(
+    const data = await apiRequest<unknown>(
         `/api/v1/products/${productId}`,
         {
             method: "PATCH",
             body: JSON.stringify(request)
         }
     );
-    const data: unknown = await response.json();
     const updatedProduct = mapProductResponse(data);
     // Ensure that the API returned the requested product
     if (updatedProduct.id !== productId) {
@@ -106,14 +103,13 @@ export async function updateProduct(
     if (!Number.isInteger(productId) || productId <= 0) {
         throw new Error("Invalid product ID.");
     }
-    const response = await apiRequest(
+    const data = await apiRequest<unknown>(
         `/api/v1/products/${productId}`,
         {
             method: "PUT",
             body: JSON.stringify(request)
         }
     );
-    const data: unknown = await response.json();
     const updatedProduct = mapProductResponse(data);
     // Ensure that the API returned the requested product
     if (updatedProduct.id !== productId) {
@@ -132,7 +128,7 @@ export async function deleteProduct(
     if (!Number.isInteger(productId) || productId <= 0) {
         throw new Error("Invalid product ID.");
     }
-    await apiRequest(
+    await apiRequest<void>(
         `/api/v1/products/${productId}`,
         {
             method: "DELETE"
