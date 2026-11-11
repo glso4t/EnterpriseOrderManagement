@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import ProductCard from "../components/ProductCard";
 import ProductForm from "../components/ProductForm";
 import PageFeedback from "../components/PageFeedback";
+import SuccessMessage from "../components/SuccessMessage";
 import { useAuth } from "../auth/useAuth";
 
 import {
@@ -58,6 +59,11 @@ export default function ProductsPage({ isActive }: ProductsPageProps) {
     // κρατά το μήνυμα σφάλματος όταν το DELETE request αποτυγχάνει
     const [deleteError, setDeleteError] =
         useState<string | null>(null);
+
+    // Stores success messages for product actions
+    const [actionSuccess, setActionSuccess] =
+        useState<string | null>(null);
+
 
     const { user } = useAuth();
 
@@ -130,6 +136,9 @@ export default function ProductsPage({ isActive }: ProductsPageProps) {
                     (product) => product.id !== productId
                 )
             );
+            setActionSuccess(
+                `Product #${productId} was deleted successfully.`
+            );
         } catch (error: unknown) {
             const message =
                 error instanceof Error
@@ -176,7 +185,11 @@ export default function ProductsPage({ isActive }: ProductsPageProps) {
                         }
                         : product
                 )
-            );  //δεν υπάρχει catch εδώ, επειδή θέλουμε το σφάλμα να μεταφερθεί πίσω στο ProductEditForm, το οποίο έχει ήδη δικό του try/catch και εμφανίζει το apiError.
+            );
+            setActionSuccess(
+                `${updatedProduct.name} was updated successfully.`
+            );
+        //δεν υπάρχει catch εδώ, επειδή θέλουμε το σφάλμα να μεταφερθεί πίσω στο ProductEditForm, το οποίο έχει ήδη δικό του try/catch και εμφανίζει το apiError.
         } finally { //Αφαιρούμε το productId από τη λίστα των προϊόντων που ενημερώνονται, ανεξάρτητα από το αν η ενημέρωση ήταν επιτυχής ή όχι
             setUpdatingProductIds((currentIds) =>
                 currentIds.filter(
@@ -215,6 +228,9 @@ export default function ProductsPage({ isActive }: ProductsPageProps) {
                         }
                         : product
                 )
+            );
+            setActionSuccess(
+                `Stock for "${updatedProduct.name}" was updated successfully.`
             );
         } catch (error: unknown) {
             const message =
@@ -331,6 +347,10 @@ return (
                     {filteredProducts.length} shown
                 </span>
             </div>
+
+            {actionSuccess !== null && (
+                <SuccessMessage message={actionSuccess} />
+            )}
 
             <div className="product-controls">
                 <label

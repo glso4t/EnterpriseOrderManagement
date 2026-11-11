@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
 import type { CreateCustomerRequest } from "../types";
-
+import SuccessMessage from "./SuccessMessage";
 
 interface CustomerFormProps {
     onCreateCustomer: (
@@ -219,12 +219,9 @@ export default function CustomerForm({
 
 
                 {successMessage !== "" && (
-                    <p
-                        className="form-success"
-                        role="status"
-                    >
-                        {successMessage}
-                    </p>
+                    <SuccessMessage 
+                        message={successMessage} 
+                    />
                 )}
 
             </form>

@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import CustomerForm from "../components/CustomerForm";
 import CustomerEditForm from "../components/CustomerEditForm";
 import PageFeedback from "../components/PageFeedback";
+import SuccessMessage from "../components/SuccessMessage";
 
 import type {
     Customer,
@@ -66,7 +67,10 @@ export default function CustomersPage() {
     // Stores errors related to customer deletion
     const [deleteError, setDeleteError] =
         useState<string | null>(null);
-
+    
+    // Stores success messages for customer actions
+    const [actionSuccess, setActionSuccess] =
+        useState<string | null>(null);
 
 
     // Effects  
@@ -160,6 +164,7 @@ export default function CustomersPage() {
         setIsEditFormOpen(false);
         setCustomerIdPendingDelete(null);
         setDeleteError(null);
+        setActionSuccess(null);
     }
 
     // Event handler: creates a new customer
@@ -203,6 +208,9 @@ export default function CustomersPage() {
             );
             // Update the currently selected customer
             setSelectedCustomer(updatedCustomer);
+            setActionSuccess(
+                `${updatedCustomer.name} was updated successfully.`
+            );
         } finally {
             setUpdatingCustomerId(null);
         }
@@ -225,6 +233,9 @@ export default function CustomersPage() {
             setSelectedCustomer(null);  // Clear the selected customer state
             setDetailsError(null);
             setIsDetailsLoading(false);
+            setActionSuccess(
+                `Customer #${customerId} was deleted successfully.`
+            );
             if (selectedCustomerId === customerId) {    // If the deleted customer was the currently selected one, select the next available customer or clear the selection if none remain
                 const nextCustomer = remainingCustomers[0] ?? null;
                 setSelectedCustomerId(
@@ -265,6 +276,10 @@ export default function CustomersPage() {
                     <small>Registered customers</small>
                 </div>
             </div>
+
+            {actionSuccess !== null && (
+                <SuccessMessage message={actionSuccess} />
+            )}
 
             <div className="customers-layout">
                 <section

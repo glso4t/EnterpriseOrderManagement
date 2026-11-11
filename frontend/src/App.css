@@ -581,6 +581,9 @@
     border-radius: 0.6rem;
     background: #f0fdf4;
     color: #166534;
+
+    line-height: 1.5;
+    overflow-wrap: anywhere;
 }
 
 @media (max-width: 640px) {

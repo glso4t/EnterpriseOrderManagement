@@ -4,6 +4,7 @@ import { getProducts } from "../services/productService";
 import OrderCard from "../components/OrderCard";
 import OrderForm from "../components/OrderForm";
 import PageFeedback from "../components/PageFeedback";
+import SuccessMessage from "../components/SuccessMessage";
 import { useAuth } from "../auth/useAuth";
 
 import type {
@@ -129,7 +130,7 @@ function OrdersPage({ isActive }: OrdersPageProps) {
         useState(false);
     const [isCreatingOrder, setIsCreatingOrder] =
         useState(false);
-    const [createOrderSuccess, setCreateOrderSuccess] =
+    const [orderSuccessMessage, setOrderSuccessMessage] =
         useState<string | null>(null);
 
     // Tracks the order action waiting for confirmation
@@ -252,7 +253,7 @@ function OrdersPage({ isActive }: OrdersPageProps) {
         setIsCreatingOrder(true);
         try {
             const createdOrder = await createOrder(request);            // Create the order through the backend
-            setCreateOrderSuccess(
+            setOrderSuccessMessage(
                 `Order #${createdOrder.id} was created successfully.`
             );
             // Reset filters so the new Pending order is visible
@@ -324,6 +325,7 @@ function OrdersPage({ isActive }: OrdersPageProps) {
             return;
         }
         setOrderActionError(null);
+        setOrderSuccessMessage(null);
         setPendingOrderAction({
             orderId,
             action
@@ -349,6 +351,11 @@ function OrdersPage({ isActive }: OrdersPageProps) {
             } else {
                 await cancelOrder(orderId);
             }
+            setOrderSuccessMessage(
+                action === "confirm"
+                    ? `Order #${orderId} was confirmed successfully.`
+                    : `Order #${orderId} was cancelled successfully.`
+            );
             // Close the confirmation interface
             setPendingOrderAction(null);
             // Clear the old selected order details
@@ -596,7 +603,7 @@ function OrdersPage({ isActive }: OrdersPageProps) {
                         if (isCreateFormOpen) {
                             setIsCreateFormOpen(false);
                         } else {
-                            setCreateOrderSuccess(null);
+                            setOrderSuccessMessage(null);
                             setIsCreateFormOpen(true);
                         }
                     }}
@@ -607,12 +614,10 @@ function OrdersPage({ isActive }: OrdersPageProps) {
                 </button>
             </section>
 
-            {createOrderSuccess !== null && (
-
-                <p className="form-success" role="status">
-                    {createOrderSuccess}
-                </p>
-
+            {orderSuccessMessage !== null && (
+                <SuccessMessage
+                    message={orderSuccessMessage}
+                />
             )}
 
             {isCreateFormOpen && (

@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
 import type { CreateProductRequest } from "../types";
+import SuccessMessage from "./SuccessMessage";
 
 interface ProductFormProps {
     onAddProduct: (
@@ -197,12 +198,9 @@ export default function ProductForm({
                 )}
 
                 {successMessage !== "" && (
-                    <p
-                        className="form-success"
-                        role="status"
-                    >
-                        {successMessage}
-                    </p>
+                    <SuccessMessage 
+                        message={successMessage} 
+                    />
                 )}
             </form>
         </section>

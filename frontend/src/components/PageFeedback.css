@@ -75,8 +75,30 @@
     }
 }
 
+/* Smaller feedback layout on mobile screens */
+
+@media (max-width: 480px) {
+    .page-feedback {
+        min-height: 170px;
+        padding: 24px 16px;
+        gap: 14px;
+    }
+
+    .page-feedback h2 {
+        font-size: 1.05rem;
+    }
+
+    .page-feedback__button {
+        width: 100%;
+        max-width: 280px;
+    }
+}
+
+/* Respect the user's reduced-motion preference */
+
 @media (prefers-reduced-motion: reduce) {
     .page-feedback__spinner {
-        animation-duration: 2s;
+        animation: none;
+        border-top-color: #2563eb;
     }
 }
