@@ -12,11 +12,16 @@ import type {
 import {
     getStoredToken,
     getUserFromToken,
+    getTokenExpirationTime,
     removeToken,
     saveToken
 } from "./tokenStorage";
 
 import { AuthContext } from "./authContext";
+
+import {
+    AUTH_SESSION_EXPIRED_EVENT
+} from "./authEvents";
 
 
 interface AuthProviderProps {
@@ -42,6 +47,60 @@ export function AuthProvider({
             removeToken();
         }
     }, []);
+
+
+    // Listen for session expiration events from the API layer.
+    useEffect(() => {
+        function handleSessionExpired(): void {
+            removeToken();
+            setUser(null);
+        }
+        window.addEventListener(
+            AUTH_SESSION_EXPIRED_EVENT,
+            handleSessionExpired
+        );
+        return () => {
+            window.removeEventListener(
+                AUTH_SESSION_EXPIRED_EVENT,
+                handleSessionExpired
+            );
+        };
+    }, []);
+
+
+    // Automatically expire the frontend session
+    // when the access token reaches its expiration time.
+    useEffect(() => {
+        if (!user) {
+            return;
+        }
+        const token = getStoredToken();
+        if (!token) {
+            return;
+        }
+        const expiresAt = getTokenExpirationTime(token);
+        if (expiresAt === null) {
+            return;
+        }
+        const remainingTime = Math.max(
+            0,
+            expiresAt - Date.now()
+        );
+        const timeoutId = window.setTimeout(
+            () => {
+                window.dispatchEvent(
+                    new Event(AUTH_SESSION_EXPIRED_EVENT)
+                );
+            },
+            remainingTime
+        );
+        return () => {
+            window.clearTimeout(timeoutId);
+        };
+
+    }, [user]);
+
+
 
     function login(token: string): void {
         const authenticatedUser = getUserFromToken(token);

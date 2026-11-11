@@ -100,3 +100,47 @@ export function getUserFromToken(token: string): AuthUser | null {
         return null;
     }
 }
+
+
+
+
+export function getTokenExpirationTime(
+    token: string
+): number | null {
+
+    try {
+        const parts = token.split(".");
+
+        if (parts.length !== 3) {
+            return null;
+        }
+
+        const payload = parts[1];
+
+        const base64 = payload
+            .replace(/-/g, "+")
+            .replace(/_/g, "/");
+
+        const paddedBase64 = base64.padEnd(
+            base64.length + (4 - (base64.length % 4)) % 4,
+            "="
+        );
+
+        const decodedPayload = atob(paddedBase64);
+
+        const jwtPayload = JSON.parse(
+            decodedPayload
+        ) as { exp?: number };
+
+        if (typeof jwtPayload.exp !== "number") {
+            return null;
+        }
+
+        // JWT expiration is expressed in seconds.
+        // JavaScript Date.now() returns milliseconds.
+        return jwtPayload.exp * 1000;
+
+    } catch {
+        return null;
+    }
+}

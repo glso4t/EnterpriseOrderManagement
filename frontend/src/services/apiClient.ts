@@ -1,5 +1,10 @@
 import { getStoredToken } from "../auth/tokenStorage";
 
+import {
+    AUTH_SESSION_EXPIRED_EVENT
+} from "../auth/authEvents";
+
+
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 // checks if the API_BASE_URL is configured and removes any trailing slashes from the URL
@@ -10,6 +15,15 @@ function getBaseUrl(): string {
         );
     }
     return API_BASE_URL.replace(/\/+$/, "");
+}
+
+
+function isAuthenticationEndpoint(path: string): boolean {
+    return (
+        path.startsWith("/api/v1/auth/login") ||
+        path.startsWith("/api/v1/auth/register") ||
+        path.startsWith("/api/v1/auth/refresh")
+    );
 }
 
 // returns the headers for API requests, including the current user's stored JWT
@@ -86,7 +100,7 @@ export async function apiRequest(
     const headers = new Headers(
         getApiHeaders(hasBody)
     );
-    // Merge any additional headers provided in the options into the request headers
+    // Merge additional headers provided by the caller.
     if (options.headers) {
         const additionalHeaders = new Headers(
             options.headers
@@ -103,6 +117,15 @@ export async function apiRequest(
         }
     );
     if (!response.ok) {
+        // Authentication failed on a protected endpoint.
+        if (
+            response.status === 401 &&
+            !isAuthenticationEndpoint(path)
+        ) {
+            window.dispatchEvent(
+                new Event(AUTH_SESSION_EXPIRED_EVENT)
+            );
+        }
         throw new Error(
             await getApiErrorMessage(response)
         );
