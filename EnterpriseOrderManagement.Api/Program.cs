@@ -81,6 +81,10 @@ builder.Services.Configure<JwtSettings>(
 
 builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
 
+builder.Services.AddScoped<
+    IRefreshTokenService,
+    RefreshTokenService
+>();
 
 // JWT Bearer Authentication & Validation
 builder.Services
@@ -143,7 +147,9 @@ builder.Services.AddCors(options =>
                 "DELETE")
             .WithHeaders(
                 "Authorization",
-                "Content-Type");
+                "Content-Type",
+                "X-Refresh-Request")
+            .AllowCredentials();
     });
 });
 

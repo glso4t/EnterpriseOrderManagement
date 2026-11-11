@@ -11,5 +11,7 @@ public class JwtSettings
     public string SecretKey { get; set; } = string.Empty;   //Το μυστικό κλειδί με το οποίο υπογράφουμε το JWT
 
     public int AccessTokenExpirationMinutes { get; set; } = 15; //Πόσο διαρκεί το access token
+
+    public int RefreshTokenExpirationDays { get; set; } = 14;
 }
 

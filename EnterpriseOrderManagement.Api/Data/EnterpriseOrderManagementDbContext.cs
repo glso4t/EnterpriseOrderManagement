@@ -17,6 +17,8 @@ public class EnterpriseOrderManagementDbContext(
     
     public DbSet<OrderItem> OrderItems => Set<OrderItem>();
 
+    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -59,6 +61,24 @@ public class EnterpriseOrderManagementDbContext(
                 }
             );
         });
+
+        modelBuilder.Entity<RefreshToken>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.UserId)
+                .IsRequired();
+            entity.Property(x => x.TokenHash)
+                .HasMaxLength(64)
+                .IsRequired();
+            entity.HasIndex(x => x.TokenHash)
+                .IsUnique();
+            entity.HasIndex(x => x.TokenFamilyId);
+            entity.HasOne(x => x.User)
+                .WithMany()
+                .HasForeignKey(x => x.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
 
         modelBuilder.Entity<Customer>(entity =>
         {
