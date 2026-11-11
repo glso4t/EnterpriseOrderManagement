@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 
 import CustomerForm from "../components/CustomerForm";
 import CustomerEditForm from "../components/CustomerEditForm";
+import PageFeedback from "../components/PageFeedback";
 
 import type {
     Customer,
@@ -306,21 +307,25 @@ export default function CustomersPage() {
                         />
                     )}
                     {isLoading ? (
-                        <p className="catalog-message">
-                            Loading customers...
-                        </p>
+                            <PageFeedback
+                                variant="loading"
+                                title="Loading customers"
+                                message="Please wait while customers are being loaded..."
+                            />
                     ) : loadError !== null ? (
-                        <div className="catalog-error" role="alert">
-                            <h3>Could not load customers</h3>
-                            <p>{loadError}</p>
-                        </div>
+                        <PageFeedback
+                            variant="error"
+                            title="Could not load customers"
+                            message={loadError}
+                        />
                     ) : customers.length === 0 ? (
-                        <div className="empty-state">
-                            <h3>No customers found</h3>
-                            <p>
-                                There are currently no registered customers.
-                            </p>
-                        </div>
+                        <PageFeedback
+                            variant="empty"
+                            title="No customers found"
+                            message="There are currently no registered customers."
+                            actionLabel="Add customer"
+                            onAction={() => setIsCreateFormOpen(true)}
+                        />
                     ) : (
                         <div className="customer-list">
                             {customers.map((customer) => (
@@ -371,21 +376,23 @@ export default function CustomersPage() {
                     </div>
 
                     {selectedCustomerId === null ? (
-                        <div className="empty-state">
-                            <h3>Select a customer</h3>
-                            <p>
-                                Choose a customer from the list to view details.
-                            </p>
-                        </div>
+                        <PageFeedback
+                            variant="empty"
+                            title="Select a customer"
+                            message="Choose a customer from the list to view details."
+                        />
                     ) : isDetailsLoading ? (
-                        <p className="catalog-message">
-                            Loading customer details...
-                        </p>
+                        <PageFeedback
+                            variant="loading"
+                            title="Loading customer details"
+                            message="Please wait while customer details are being loaded..."
+                        />
                     ) : detailsError !== null ? (
-                        <div className="catalog-error" role="alert">
-                            <h3>Could not load details</h3>
-                            <p>{detailsError}</p>
-                        </div>
+                        <PageFeedback
+                            variant="error"
+                            title="Could not load customer details"
+                            message={detailsError}
+                        />
                     ) : selectedCustomer !== null ? (
 
                         isEditFormOpen ? (
@@ -499,7 +506,13 @@ export default function CustomersPage() {
                             )}
                         </div>
                         )
-                    ) : null}
+                    ) : (
+                        <PageFeedback
+                            variant="loading"
+                            title="Loading customer details"
+                            message="Please wait while customer details are being loaded..."
+                        />
+                    )}
                 </section>
             </div>
         </section>

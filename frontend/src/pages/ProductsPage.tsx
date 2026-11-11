@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 
 import ProductCard from "../components/ProductCard";
 import ProductForm from "../components/ProductForm";
+import PageFeedback from "../components/PageFeedback";
 import { useAuth } from "../auth/useAuth";
 
 import {
@@ -394,22 +395,28 @@ return (
             )}
 
             {isLoading ? (
-                <p className="catalog-message">
-                    Loading products...
-                </p>
+                <PageFeedback
+                    variant="loading"
+                    title="Loading products"
+                    message="Please wait while products are being loaded..."
+                />
             ) : loadError ? (
-                <div className="catalog-error" role="alert">
-                    <h3>Could not load products</h3>
-                    <p>{loadError}</p>
-                </div>
+                <PageFeedback
+                    variant="error"
+                    title="Could not load products"
+                    message={loadError}
+                />
             ) : filteredProducts.length === 0 ? (
-                <div className="empty-state">
-                    <h3>No products found</h3>
-
-                    <p>
-                        Try another search term or change the stock filter.
-                    </p>
-                </div>
+                <PageFeedback
+                    variant="empty"
+                    title="No products found"
+                    message="Try another search term or change the stock filter."
+                    actionLabel="Clear search"
+                    onAction={() => {
+                        setSearchTerm("");
+                        setShowInStockOnly(false);
+                    }}
+                />
             ) : (
                     <div className="product-grid">
                         {filteredProducts.map((product) => (

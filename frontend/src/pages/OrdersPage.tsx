@@ -3,6 +3,7 @@ import { getCustomers } from "../services/customerService";
 import { getProducts } from "../services/productService";   
 import OrderCard from "../components/OrderCard";
 import OrderForm from "../components/OrderForm";
+import PageFeedback from "../components/PageFeedback";
 import { useAuth } from "../auth/useAuth";
 
 import type {
@@ -620,73 +621,51 @@ function OrdersPage({ isActive }: OrdersPageProps) {
 
                     {!hasLoadedCustomers || !hasLoadedProducts ? (
 
-                        <p className="catalog-message">
-                            Loading customers and products...
-                        </p>
+                        <PageFeedback
+                            variant="loading"
+                            title="Loading order form data"
+                            message="Please wait while customers and products are being loaded..."
+                        />
 
                     ) : customersError !== null || productsError !== null ? (
 
-                        <div className="catalog-error" role="alert">
+                        <PageFeedback
+                            variant="error"
+                            title="Could not load order form data"
+                            message={[customersError, productsError].filter(Boolean).join(" ")}
+                            actionLabel="Retry"
+                            onAction={() => {
+                                setCustomersError(null);
+                                setProductsError(null);
 
-                            <h3>Could not load order form data</h3>
+                                setHasLoadedCustomers(false);
+                                setHasLoadedProducts(false);
 
-                            {customersError !== null && (
-                                <p>{customersError}</p>
-                            )}
+                                setCustomersRefreshKey(
+                                    (currentValue) => currentValue + 1
+                                );
 
-                            {productsError !== null && (
-                                <p>{productsError}</p>
-                            )}
-
-
-                            <button
-                                className="filter-button"
-                                type="button"
-                                onClick={() => {
-
-                                    setCustomersError(null);
-                                    setProductsError(null);
-
-                                    setHasLoadedCustomers(false);
-                                    setHasLoadedProducts(false);
-
-                                    setCustomersRefreshKey(
-                                        (currentValue) => currentValue + 1
-                                    );
-
-                                    setProductsRefreshKey(
-                                        (currentValue) => currentValue + 1
-                                    );
-                                }}
-                            >
-                                Retry
-                            </button>
-
-                        </div>
+                                setProductsRefreshKey(
+                                    (currentValue) => currentValue + 1
+                                );
+                            }}
+                        />
 
                     ) : customers.length === 0 ? (
 
-                        <div className="empty-state">
-
-                            <h3>No customers available</h3>
-
-                            <p>
-                                Create a customer before creating an order.
-                            </p>
-
-                        </div>
+                        <PageFeedback
+                            variant="empty"
+                            title="No customers available"
+                            message="Create a customer before creating an order."
+                        />
 
                     ) : products.length === 0 ? (
 
-                        <div className="empty-state">
-
-                            <h3>No products available</h3>
-
-                            <p>
-                                Create products before creating an order.
-                            </p>
-
-                        </div>
+                        <PageFeedback
+                            variant="empty"
+                            title="No products available"
+                            message="Create products before creating an order."
+                        />
 
                     ) : (
 
@@ -925,24 +904,11 @@ function OrdersPage({ isActive }: OrdersPageProps) {
 
             {customersError !== null && (
 
-                <div className="catalog-error" role="alert">
-
-                    <p>Could not load customer information.</p>
-                    <p>{customersError}</p>
-
-                </div>
-
-            )}
-
-
-            {loadError !== null && (
-
-                <div className="catalog-error" role="alert">
-
-                    <p>Could not load orders.</p>
-                    <p>{loadError}</p>
-
-                </div>
+                <PageFeedback
+                    variant="error"
+                    title="Could not load customer information"
+                    message={customersError}
+                />
 
             )}
 
@@ -951,33 +917,37 @@ function OrdersPage({ isActive }: OrdersPageProps) {
 
             {isLoading && !hasLoadedOrders ? (
 
-                <p className="catalog-message">
-                    Loading orders...
-                </p>
+                <PageFeedback
+                    variant="loading"
+                    title="Loading orders"
+                    message="Please wait while orders are being loaded..."
+                />
 
             ) : loadError !== null && !hasLoadedOrders ? (
 
-                <div className="empty-state">
+                <PageFeedback
+                    variant="error"
+                    title="Orders could not be loaded"
+                    message={loadError}
+                    actionLabel="Retry"
+                    onAction={() => {
+                        setLoadError(null);
+                        setIsLoading(true);
+                        setHasLoadedOrders(false);
 
-                    <h3>Orders could not be loaded</h3>
-
-                    <p>
-                        Check your connection and try again.
-                    </p>
-
-                </div>
+                        setOrdersRefreshKey(
+                            (currentValue) => currentValue + 1
+                        );
+                    }}
+                />
 
             ) : orders.length === 0 ? (
 
-                <div className="empty-state">
-
-                    <h3>No orders found</h3>
-
-                    <p>
-                        There are no orders matching the selected filters.
-                    </p>
-
-                </div>
+                <PageFeedback
+                    variant="empty"
+                    title="No orders found"
+                    message="There are no orders matching the selected filters."
+                />
 
             ) : (
 
@@ -1043,31 +1013,27 @@ function OrdersPage({ isActive }: OrdersPageProps) {
 
                             {selectedOrderId === null ? (
 
-                                <div className="order-details-empty">
-
-                                    <h3>Order details</h3>
-
-                                    <p>
-                                        Select an order to view its details.
-                                    </p>
-
-                                </div>
+                                <PageFeedback
+                                    variant="empty"
+                                    title="Order details"
+                                    message="Select an order to view its details."
+                                />
 
                             ) : isDetailsLoading ? (
 
-                                <p className="catalog-message">
-                                    Loading order details...
-                                </p>
+                                <PageFeedback
+                                    variant="loading"
+                                    title="Loading order details"
+                                    message="Please wait while order details are being loaded..."
+                                />
 
                             ) : detailsError !== null ? (
 
-                                <div className="catalog-error" role="alert">
-
-                                    <h3>Could not load order details</h3>
-
-                                    <p>{detailsError}</p>
-
-                                </div>
+                                <PageFeedback
+                                    variant="error"
+                                    title="Could not load order details"
+                                    message={detailsError}
+                                />
 
                             ) : selectedOrder !== null ? (
 
@@ -1318,7 +1284,13 @@ function OrdersPage({ isActive }: OrdersPageProps) {
 
                                 </div>
 
-                            ) : null}
+                            ) : (
+                                <PageFeedback
+                                    variant="loading"
+                                    title="Loading order details"
+                                    message="Please wait while order details are being loaded..."
+                                />
+                            )}
 
                         </div>
 
