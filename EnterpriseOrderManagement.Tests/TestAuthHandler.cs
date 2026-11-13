@@ -41,6 +41,9 @@ public sealed class TestAuthHandler(
                 ClaimTypes.Name,
                 "integration-test-user"),
             new Claim(
+                ClaimTypes.NameIdentifier,
+                "integration-test-user"),
+            new Claim(
                 ClaimTypes.Role,
                 role)
         };

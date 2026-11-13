@@ -87,6 +87,45 @@ namespace EnterpriseOrderManagement.Api.Migrations
                     b.ToTable("AspNetUsers", (string)null);
                 });
 
+            modelBuilder.Entity("EnterpriseOrderManagement.Api.Models.AuditLog", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTime>("ChangedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("EntityId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("EntityName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("UserId")
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ChangedAtUtc");
+
+                    b.HasIndex("EntityName", "EntityId");
+
+                    b.ToTable("AuditLogs");
+                });
+
             modelBuilder.Entity("EnterpriseOrderManagement.Api.Models.Customer", b =>
                 {
                     b.Property<int>("Id")

@@ -185,6 +185,8 @@ builder.Services.AddProblemDetails();
 
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 
+// Provides access to the current authenticated HTTP user.
+builder.Services.AddHttpContextAccessor();
 
 // Database
 builder.Services.AddDbContext<EnterpriseOrderManagementDbContext>(
