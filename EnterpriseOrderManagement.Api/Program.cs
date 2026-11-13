@@ -9,6 +9,7 @@ using EnterpriseOrderManagement.Api.Middleware;
 using EnterpriseOrderManagement.Api.Configuration;
 using EnterpriseOrderManagement.Api.OpenApi;
 using EnterpriseOrderManagement.Api.Models;
+using EnterpriseOrderManagement.Api.Events.Domain;
 
 using System.Threading.RateLimiting;
 using System.IdentityModel.Tokens.Jwt;
@@ -271,6 +272,11 @@ builder.Services.AddScoped<
     OrderService
 >();
 
+
+// Domain Events
+builder.Services.AddScoped<
+    IDomainEventDispatcher,
+    DomainEventDispatcher>();
 
 var app = builder.Build();
 
