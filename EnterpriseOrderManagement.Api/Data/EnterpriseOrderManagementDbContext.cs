@@ -28,14 +28,17 @@ public class EnterpriseOrderManagementDbContext(
     public DbSet<Customer> Customers => Set<Customer>();
 
     public DbSet<Order> Orders => Set<Order>();
-    
+
     public DbSet<OrderItem> OrderItems => Set<OrderItem>();
 
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
-    
-    
+
+    public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
+
+
+
     // Save business changes and their audit records atomically.
     public override int SaveChanges()
     {
@@ -284,7 +287,7 @@ public class EnterpriseOrderManagementDbContext(
                 .WithMany(customer => customer.Orders)
                 .HasForeignKey(order => order.CustomerId)
                 .OnDelete(DeleteBehavior.Restrict); //Αν ένας πελάτης έχει έστω και μία παραγγελία στο σύστημα, δεν μπορείς να διαγράψεις τον πελάτη για να διατηρηθεί το ιστορικό της επιχείρησης
-    });
+        });
 
         modelBuilder.Entity<OrderItem>(entity =>
         {
@@ -310,7 +313,7 @@ public class EnterpriseOrderManagementDbContext(
                 .WithMany(product => product.OrderItems)
                 .HasForeignKey(item => item.ProductId)
                 .OnDelete(DeleteBehavior.Restrict); //Αν κάποιος πάει να διαγράψει ένα προϊόν (Product) το οποίο έχει χρησιμοποιηθεί έστω και σε μία παλιά παραγγελία, η βάση θα το απαγορεύσει και θα πετάξει σφάλμα
-    });
+        });
 
         modelBuilder.Entity<AuditLog>(entity =>
         {
@@ -333,6 +336,26 @@ public class EnterpriseOrderManagementDbContext(
             {
                 auditLog.EntityName,
                 auditLog.EntityId
+            });
+        });
+
+        modelBuilder.Entity<OutboxMessage>(entity =>
+        {
+            entity.HasKey(message => message.Id);
+            entity.Property(message => message.Type)
+                .HasMaxLength(200)
+                .IsRequired();
+            entity.Property(message => message.Content)
+                .HasColumnType("nvarchar(max)")
+                .IsRequired();
+            entity.Property(message => message.OccurredOnUtc)
+                .IsRequired();
+            entity.Property(message => message.Error)
+                .HasMaxLength(2000);
+            entity.HasIndex(message => new
+            {
+                message.ProcessedOnUtc,
+                message.OccurredOnUtc
             });
         });
     }

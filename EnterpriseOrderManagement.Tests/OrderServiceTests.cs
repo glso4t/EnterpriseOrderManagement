@@ -3,6 +3,8 @@ using EnterpriseOrderManagement.Api.Models;
 using EnterpriseOrderManagement.Api.Repositories.Interfaces;
 using EnterpriseOrderManagement.Api.Services;
 using EnterpriseOrderManagement.Api.Services.Results;
+using EnterpriseOrderManagement.Api.Events.Domain;
+using EnterpriseOrderManagement.Api.Services.Interfaces;
 using Moq;
 
 namespace EnterpriseOrderManagement.Tests;
@@ -22,7 +24,9 @@ public class OrderServiceTests
         var service = new OrderService(
             orderRepositoryMock.Object,
             customerRepositoryMock.Object,
-            productRepositoryMock.Object);
+            productRepositoryMock.Object,
+            Mock.Of<IUnitOfWork>(),
+            Mock.Of<IDomainEventDispatcher>());
         var request = new CreateOrderRequest
         {
             CustomerId = 1,
@@ -96,7 +100,9 @@ public class OrderServiceTests
         var service = new OrderService(
             orderRepositoryMock.Object,
             customerRepositoryMock.Object,
-            productRepositoryMock.Object);
+            productRepositoryMock.Object,
+            Mock.Of<IUnitOfWork>(),
+            Mock.Of<IDomainEventDispatcher>());
         var request = new CreateOrderRequest
         {
             CustomerId = customerId,
@@ -157,7 +163,9 @@ public class OrderServiceTests
         var service = new OrderService(
             orderRepositoryMock.Object,
             customerRepositoryMock.Object,
-            productRepositoryMock.Object);
+            productRepositoryMock.Object,
+            Mock.Of<IUnitOfWork>(),
+            Mock.Of<IDomainEventDispatcher>());
         // Act
         var result = await service.CancelAsync(orderId);
         // Assert

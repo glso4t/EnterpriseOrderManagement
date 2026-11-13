@@ -196,7 +196,8 @@ builder.Services.AddDbContext<EnterpriseOrderManagementDbContext>(
             builder.Configuration.GetConnectionString(
                 "DefaultConnection"))
 );
-
+// Unit of Work
+builder.Services.AddScoped<IUnitOfWork, EfUnitOfWork>();
 
 // Identity Registration
 // Important: AddIdentityCore does not override the JWT Bearer
@@ -277,6 +278,11 @@ builder.Services.AddScoped<
 builder.Services.AddScoped<
     IDomainEventDispatcher,
     DomainEventDispatcher>();
+
+
+builder.Services.AddScoped<
+    IDomainEventHandler<OrderCreatedDomainEvent>,
+    OrderCreatedDomainEventHandler>();
 
 var app = builder.Build();
 

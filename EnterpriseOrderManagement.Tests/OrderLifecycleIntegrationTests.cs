@@ -3,17 +3,26 @@ using System.Net.Http.Json;
 using EnterpriseOrderManagement.Api.Dtos.Customers;
 using EnterpriseOrderManagement.Api.Dtos.Orders;
 using EnterpriseOrderManagement.Api.Dtos.Products;
+using System.Text.Json;
+
+using EnterpriseOrderManagement.Api.Data;
+using EnterpriseOrderManagement.Api.Events.Integration;
+
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace EnterpriseOrderManagement.Tests;
 
 public class OrderLifecycleIntegrationTests
     : IClassFixture<SqlServerTestWebApplicationFactory>
 {
+    private readonly SqlServerTestWebApplicationFactory _factory;
     private readonly HttpClient _client;
 
     public OrderLifecycleIntegrationTests(
         SqlServerTestWebApplicationFactory factory)
     {
+        _factory = factory;
         factory.InitializeDatabase();
         _client = factory.CreateClient();
     }
@@ -68,6 +77,37 @@ public class OrderLifecycleIntegrationTests
         Assert.Equal(2, order.Items[0].Quantity);
         Assert.Equal(899.99m, order.Items[0].UnitPrice);
         Assert.Equal(1799.98m, order.TotalAmount);
+        // VERIFY OUTBOX MESSAGE
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider
+                .GetRequiredService<EnterpriseOrderManagementDbContext>();
+            var outboxMessage = await dbContext.OutboxMessages
+                .AsNoTracking()
+                .SingleAsync(message =>
+                    message.Type == "orders.order-created.v1");
+            Assert.Null(outboxMessage.ProcessedOnUtc);
+            var integrationEvent =
+                JsonSerializer.Deserialize<OrderCreatedIntegrationEvent>(
+                    outboxMessage.Content,
+                    new JsonSerializerOptions(JsonSerializerDefaults.Web));
+            Assert.NotNull(integrationEvent);
+            Assert.Equal(
+                outboxMessage.Id,
+                integrationEvent.EventId);
+            Assert.Equal(
+                order.Id,
+                integrationEvent.OrderId);
+            Assert.Equal(
+                order.CustomerId,
+                integrationEvent.CustomerId);
+            Assert.Equal(
+                order.TotalAmount,
+                integrationEvent.TotalAmount);
+            Assert.Equal(
+                1,
+                integrationEvent.SchemaVersion);
+        }
         // STOCK MUST DECREASE FROM 10 TO 8
         var productAfterOrder = await _client
             .GetFromJsonAsync<ProductResponse>(

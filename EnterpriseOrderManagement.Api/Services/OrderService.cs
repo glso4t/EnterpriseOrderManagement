@@ -5,13 +5,16 @@ using EnterpriseOrderManagement.Api.Repositories.Interfaces;
 using EnterpriseOrderManagement.Api.Services.Interfaces;
 using EnterpriseOrderManagement.Api.Services.Results;
 using EnterpriseOrderManagement.Api.Services.Queries;
+using EnterpriseOrderManagement.Api.Events.Domain;
 
 namespace EnterpriseOrderManagement.Api.Services;
 
 public sealed class OrderService(
     IOrderRepository orderRepository,
     ICustomerRepository customerRepository,
-    IProductRepository productRepository) : IOrderService
+    IProductRepository productRepository,
+    IUnitOfWork unitOfWork,
+    IDomainEventDispatcher domainEventDispatcher) : IOrderService
 {
     private static OrderResponse ToResponse(Order order)
     {
@@ -107,14 +110,38 @@ public sealed class OrderService(
             Status = OrderStatus.Pending,
             Items = orderItems
         };
-        var createdOrder = await orderRepository.CreateAsync(
-            order,
-            productsToUpdate,
+        var orderResponse = await unitOfWork.ExecuteInTransactionAsync(
+            async transactionToken =>
+            {
+                // 1. Save Order, stock changes and Audit Logs.
+                var createdOrder = await orderRepository.CreateAsync(
+                    order,
+                    productsToUpdate,
+                    transactionToken);
+                var response = ToResponse(createdOrder);
+                // 2. Create the Domain Event.
+                var domainEvent = new OrderCreatedDomainEvent(
+                    OrderId: createdOrder.Id,
+                    CustomerId: createdOrder.CustomerId,
+                    TotalAmount: response.TotalAmount,
+                    OccurredOnUtc: DateTimeOffset.UtcNow
+                );
+                // 3. Dispatch the Domain Event.
+                // The handler adds an OutboxMessage to the same DbContext.
+                await domainEventDispatcher.DispatchAsync(
+                    domainEvent,
+                    transactionToken);
+                // 4. Persist the Outbox Message in the same transaction.
+                await unitOfWork.SaveChangesAsync(transactionToken);
+                return response;
+            },
             cancellationToken);
+        // The transaction has committed successfully.
         return new OrderCreationResult(
             OrderCreationStatus.Success,
-            ToResponse(createdOrder));
+            orderResponse);
     }
+
 
     public async Task<OrderStatusChangeResult> ConfirmAsync(
         int id,
@@ -143,6 +170,7 @@ public sealed class OrderService(
             OrderStatusChangeStatus.Success,
             ToResponse(updatedOrder));
     }
+
 
     public async Task<OrderStatusChangeResult> CancelAsync(
         int id,
