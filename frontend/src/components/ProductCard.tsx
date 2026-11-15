@@ -51,10 +51,6 @@ export default function ProductCard({
     return (
         <article className="product-card">
             <div className="product-card-top">
-                <span className="product-category">
-                    {product.category}
-                </span>
-
                 <span className={`stock-badge ${stockClass}`}>
                     {stockLabel}
                 </span>

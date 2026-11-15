@@ -179,10 +179,7 @@ export default function ProductsPage({ isActive }: ProductsPageProps) {
             setProducts((currentProducts) =>
                 currentProducts.map((product) =>
                     product.id === updatedProduct.id
-                        ? {
-                            ...updatedProduct,
-                            category: product.category
-                        }
+                        ? updatedProduct
                         : product
                 )
             );
@@ -222,10 +219,7 @@ export default function ProductsPage({ isActive }: ProductsPageProps) {
             setProducts((currentProducts) =>        //Ενημέρωση του state των προϊόντων με το ενημερωμένο προϊόν
                 currentProducts.map((product) =>
                     product.id === updatedProduct.id        //Αν το productId ταιριάζει με το ενημερωμένο προϊόν, αντικαθιστούμε το προϊόν με το ενημερωμένο προϊόν, αλλιώς κρατάμε το υπάρχον προϊόν
-                        ? {
-                            ...updatedProduct,      
-                            category: product.category
-                        }
+                        ? updatedProduct     
                         : product
                 )
             );
@@ -294,8 +288,7 @@ export default function ProductsPage({ isActive }: ProductsPageProps) {
 
     const filteredProducts = products.filter((product) => {
         const matchesSearch =   //ελέγχει αν το όνομα ή η κατηγορία περιέχει το κείμενο αναζήτησης
-            product.name.toLowerCase().includes(normalizedSearch) ||
-            product.category.toLowerCase().includes(normalizedSearch);
+            product.name.toLowerCase().includes(normalizedSearch);
 
         const matchesStock =    //επιτρέπει όλα τα προϊόντα όταν το φίλτρο είναι απενεργοποιημένο. Όταν ενεργοποιείται, επιτρέπει μόνο όσα ειναι in stock και έχουν stock > 0
             !showInStockOnly || product.stock > 0;
@@ -366,7 +359,7 @@ return (
                         onChange={(event) =>
                             setSearchTerm(event.target.value)
                         }
-                        placeholder="Search by name or category..."
+                        placeholder="Search by name..."
                     />
                     <button
                         className="filter-button"

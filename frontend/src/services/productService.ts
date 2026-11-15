@@ -35,10 +35,8 @@ function mapProductResponse(value: unknown): Product {
             "The API returned a product with an invalid structure."
         );
     }
-    return {
-        ...value,
-        category: "Uncategorized"
-    };
+    return value;
+
 }
 
 

@@ -189,14 +189,9 @@
 
 .product-card-top {
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-end;
     align-items: center;
     gap: 12px;
-}
-
-.product-category {
-    color: #6a7890;
-    font-size: 12px;
 }
 
 .stock-badge {
