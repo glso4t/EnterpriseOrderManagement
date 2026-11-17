@@ -125,6 +125,37 @@ public class OrderLifecycleIntegrationTests
             .ReadFromJsonAsync<OrderResponse>();
         Assert.NotNull(confirmedOrder);
         Assert.Equal("Confirmed", confirmedOrder.Status);
+        // VERIFY ORDER CONFIRMED OUTBOX MESSAGE
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider
+                .GetRequiredService<EnterpriseOrderManagementDbContext>();
+            var outboxMessage = await dbContext.OutboxMessages
+                .AsNoTracking()
+                .SingleAsync(message =>
+                    message.Type == "orders.order-confirmed.v1");
+            Assert.Null(outboxMessage.ProcessedOnUtc);
+            var integrationEvent =
+                JsonSerializer.Deserialize<OrderConfirmedIntegrationEvent>(
+                    outboxMessage.Content,
+                    new JsonSerializerOptions(JsonSerializerDefaults.Web));
+            Assert.NotNull(integrationEvent);
+            Assert.Equal(
+                outboxMessage.Id,
+                integrationEvent.EventId);
+            Assert.Equal(
+                order.Id,
+                integrationEvent.OrderId);
+            Assert.Equal(
+                order.CustomerId,
+                integrationEvent.CustomerId);
+            Assert.Equal(
+                order.TotalAmount,
+                integrationEvent.TotalAmount);
+            Assert.Equal(
+                1,
+                integrationEvent.SchemaVersion);
+        }
         // CANCEL ORDER
         var cancelResponse = await _client.PostAsync(
             $"/api/v1/orders/{order.Id}/cancel",
