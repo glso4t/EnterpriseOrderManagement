@@ -283,6 +283,10 @@ builder.Services.AddScoped<
     IDomainEventHandler<OrderConfirmedDomainEvent>,
     OrderConfirmedDomainEventHandler>();
 
+builder.Services.AddScoped<
+    IDomainEventHandler<OrderCancelledDomainEvent>,
+    OrderCancelledDomainEventHandler>();
+
 var app = builder.Build();
 
 

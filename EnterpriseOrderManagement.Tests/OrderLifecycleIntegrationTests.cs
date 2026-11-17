@@ -167,6 +167,37 @@ public class OrderLifecycleIntegrationTests
             .ReadFromJsonAsync<OrderResponse>();
         Assert.NotNull(cancelledOrder);
         Assert.Equal("Cancelled", cancelledOrder.Status);
+        // VERIFY ORDER CANCELLED OUTBOX MESSAGE
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider
+                .GetRequiredService<EnterpriseOrderManagementDbContext>();
+            var outboxMessage = await dbContext.OutboxMessages
+                .AsNoTracking()
+                .SingleAsync(message =>
+                    message.Type == "orders.order-cancelled.v1");
+            Assert.Null(outboxMessage.ProcessedOnUtc);
+            var integrationEvent =
+                JsonSerializer.Deserialize<OrderCancelledIntegrationEvent>(
+                    outboxMessage.Content,
+                    new JsonSerializerOptions(JsonSerializerDefaults.Web));
+            Assert.NotNull(integrationEvent);
+            Assert.Equal(
+                outboxMessage.Id,
+                integrationEvent.EventId);
+            Assert.Equal(
+                order.Id,
+                integrationEvent.OrderId);
+            Assert.Equal(
+                order.CustomerId,
+                integrationEvent.CustomerId);
+            Assert.Equal(
+                order.TotalAmount,
+                integrationEvent.TotalAmount);
+            Assert.Equal(
+                1,
+                integrationEvent.SchemaVersion);
+        }
         // STOCK MUST RETURN TO 10
         var productAfterCancellation = await _client
             .GetFromJsonAsync<ProductResponse>(

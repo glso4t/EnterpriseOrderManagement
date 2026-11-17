@@ -160,7 +160,7 @@ public sealed class OrderService(
             return new OrderStatusChangeResult(
                 OrderStatusChangeStatus.InvalidTransition);
         }
-                order.Status = OrderStatus.Confirmed;
+        order.Status = OrderStatus.Confirmed;
         var confirmedOrderResponse = await unitOfWork.ExecuteInTransactionAsync(
             async transactionToken =>
             {
@@ -227,13 +227,35 @@ public sealed class OrderService(
             productsToUpdate.Add(product);
         }
         order.Status = OrderStatus.Cancelled;
-        var updatedOrder = await orderRepository.UpdateStatusAsync(
-            order,
-            productsToUpdate,
+        var cancelledOrderResponse = await unitOfWork.ExecuteInTransactionAsync(
+            async transactionToken =>
+            {
+                // 1. Save the status change, the restored stock and the Audit Logs.
+                var updatedOrder = await orderRepository.UpdateStatusAsync(
+                    order,
+                    productsToUpdate,
+                    transactionToken);
+                var response = ToResponse(updatedOrder);
+                // 2. Create the Domain Event.
+                var domainEvent = new OrderCancelledDomainEvent(
+                    OrderId: updatedOrder.Id,
+                    CustomerId: updatedOrder.CustomerId,
+                    TotalAmount: response.TotalAmount,
+                    OccurredOnUtc: DateTimeOffset.UtcNow
+                );
+                // 3. Dispatch the Domain Event.
+                // The handler adds an OutboxMessage to the same DbContext.
+                await domainEventDispatcher.DispatchAsync(
+                    domainEvent,
+                    transactionToken);
+                // 4. Persist the Outbox Message in the same transaction.
+                await unitOfWork.SaveChangesAsync(transactionToken);
+                return response;
+            },
             cancellationToken);
         return new OrderStatusChangeResult(
             OrderStatusChangeStatus.Success,
-            ToResponse(updatedOrder));
+            cancelledOrderResponse);
     }
 
     public async Task<PagedResponse<OrderResponse>> GetPagedAsync(
