@@ -85,7 +85,7 @@ public class OrderLifecycleIntegrationTests
             var outboxMessage = await dbContext.OutboxMessages
                 .AsNoTracking()
                 .SingleAsync(message =>
-                    message.Type == "orders.order-created.v1");
+            message.Type == "orders.order-created.v2");
             Assert.Null(outboxMessage.ProcessedOnUtc);
             var integrationEvent =
                 JsonSerializer.Deserialize<OrderCreatedIntegrationEvent>(
@@ -105,8 +105,14 @@ public class OrderLifecycleIntegrationTests
                 order.TotalAmount,
                 integrationEvent.TotalAmount);
             Assert.Equal(
-                1,
+                2,
                 integrationEvent.SchemaVersion);
+            Assert.Equal(
+                customer.Name,
+                integrationEvent.Customer.Name);
+            Assert.Equal(
+                customer.Email,
+                integrationEvent.Customer.Email);
         }
         // STOCK MUST DECREASE FROM 10 TO 8
         var productAfterOrder = await _client

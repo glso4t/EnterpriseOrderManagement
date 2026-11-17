@@ -10,6 +10,7 @@ using EnterpriseOrderManagement.Api.Configuration;
 using EnterpriseOrderManagement.Api.OpenApi;
 using EnterpriseOrderManagement.Api.Models;
 using EnterpriseOrderManagement.Api.Events.Domain;
+using EnterpriseOrderManagement.Api.Events.Integration;
 
 using System.Threading.RateLimiting;
 using System.IdentityModel.Tokens.Jwt;
@@ -287,6 +288,9 @@ builder.Services.AddScoped<
     IDomainEventHandler<OrderCancelledDomainEvent>,
     OrderCancelledDomainEventHandler>();
 
+builder.Services.AddScoped<
+    ICustomerSnapshotProvider,
+    CustomerSnapshotProvider>();
 var app = builder.Build();
 
 
