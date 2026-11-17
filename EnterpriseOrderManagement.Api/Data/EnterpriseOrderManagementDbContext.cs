@@ -355,6 +355,7 @@ public class EnterpriseOrderManagementDbContext(
             entity.HasIndex(message => new
             {
                 message.ProcessedOnUtc,
+                message.LockedUntilUtc,
                 message.OccurredOnUtc
             });
         });

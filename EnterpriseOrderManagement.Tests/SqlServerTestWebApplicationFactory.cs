@@ -1,5 +1,6 @@
 
 using EnterpriseOrderManagement.Api.Data;
+using EnterpriseOrderManagement.Api.BackgroundServices;
 
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
@@ -65,6 +66,19 @@ public sealed class SqlServerTestWebApplicationFactory
 
         builder.ConfigureTestServices(services =>
         {
+            //αφαιρούμε μόνο τον Outbox Publisher από το test host. Δεν επηρεάζουμε μελλοντικά άλλους hosted services
+// Remove only the Outbox Publisher from the test host.
+        var outboxHostedService = services.FirstOrDefault(
+            descriptor =>
+                descriptor.ServiceType == typeof(IHostedService) &&
+                descriptor.ImplementationType ==
+                    typeof(OutboxPublisherBackgroundService));
+
+        if (outboxHostedService is not null)
+        {
+            services.Remove(outboxHostedService);
+        }
+
             services
                 .AddAuthentication(options =>
                 {

@@ -293,6 +293,9 @@ builder.Services.AddScoped<
     ICustomerSnapshotProvider,
     CustomerSnapshotProvider>();
 
+builder.Services.AddScoped<
+    OutboxMessageClaimService>();
+
 builder.Services.AddHostedService<
     OutboxPublisherBackgroundService>();
 

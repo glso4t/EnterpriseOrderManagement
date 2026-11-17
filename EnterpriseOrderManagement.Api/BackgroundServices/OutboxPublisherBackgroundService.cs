@@ -62,30 +62,25 @@ public sealed class OutboxPublisherBackgroundService(
         CancellationToken cancellationToken)
     {
         await using var scope = scopeFactory.CreateAsyncScope();
-
-        var dbContext = scope.ServiceProvider
-            .GetRequiredService<EnterpriseOrderManagementDbContext>();
-
-        var pendingMessages = await dbContext.OutboxMessages
-            .AsNoTracking()
-            .Where(message => message.ProcessedOnUtc == null)
-            .OrderBy(message => message.OccurredOnUtc)
-            .Take(BatchSize)
-            .ToListAsync(cancellationToken);
-
-        if (pendingMessages.Count == 0)
+        var claimService = scope.ServiceProvider
+            .GetRequiredService<OutboxMessageClaimService>();
+        var claimedMessages = await claimService.ClaimPendingMessagesAsync(
+            BatchSize,
+            TimeSpan.FromMinutes(1),
+            cancellationToken);
+        if (claimedMessages.Count == 0)
         {
             logger.LogDebug(
-                "No pending Outbox messages found.");
+                "No claimable Outbox messages found.");
             return;
         }
         logger.LogInformation(
-            "Outbox polling found {MessageCount} pending message(s).",
-            pendingMessages.Count);
-        foreach (var message in pendingMessages)
+            "Outbox Publisher claimed {MessageCount} message(s).",
+            claimedMessages.Count);
+        foreach (var message in claimedMessages)
         {
             logger.LogDebug(
-                "Pending Outbox message {MessageId} of type {MessageType}.",
+                "Claimed Outbox message {MessageId} of type {MessageType}.",
                 message.Id,
                 message.Type);
         }

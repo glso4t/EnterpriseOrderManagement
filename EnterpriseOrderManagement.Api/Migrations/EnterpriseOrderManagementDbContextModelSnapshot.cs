@@ -235,6 +235,12 @@ namespace EnterpriseOrderManagement.Api.Migrations
                         .HasMaxLength(2000)
                         .HasColumnType("nvarchar(2000)");
 
+                    b.Property<Guid?>("LockToken")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset?>("LockedUntilUtc")
+                        .HasColumnType("datetimeoffset");
+
                     b.Property<DateTimeOffset>("OccurredOnUtc")
                         .HasColumnType("datetimeoffset");
 
@@ -248,7 +254,7 @@ namespace EnterpriseOrderManagement.Api.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ProcessedOnUtc", "OccurredOnUtc");
+                    b.HasIndex("ProcessedOnUtc", "LockedUntilUtc", "OccurredOnUtc");
 
                     b.ToTable("OutboxMessages");
                 });
