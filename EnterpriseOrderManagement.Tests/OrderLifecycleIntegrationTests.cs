@@ -139,7 +139,7 @@ public class OrderLifecycleIntegrationTests
             var outboxMessage = await dbContext.OutboxMessages
                 .AsNoTracking()
                 .SingleAsync(message =>
-                    message.Type == "orders.order-confirmed.v1");
+                    message.Type == "orders.order-confirmed.v2");
             Assert.Null(outboxMessage.ProcessedOnUtc);
             var integrationEvent =
                 JsonSerializer.Deserialize<OrderConfirmedIntegrationEvent>(
@@ -159,8 +159,15 @@ public class OrderLifecycleIntegrationTests
                 order.TotalAmount,
                 integrationEvent.TotalAmount);
             Assert.Equal(
-                1,
+                2,
                 integrationEvent.SchemaVersion);
+            Assert.Equal(
+                customer.Name,
+                integrationEvent.Customer.Name);
+            Assert.Equal(
+                customer.Email,
+                integrationEvent.Customer.Email);
+        
         }
         // CANCEL ORDER
         var cancelResponse = await _client.PostAsync(
@@ -181,7 +188,7 @@ public class OrderLifecycleIntegrationTests
             var outboxMessage = await dbContext.OutboxMessages
                 .AsNoTracking()
                 .SingleAsync(message =>
-                    message.Type == "orders.order-cancelled.v1");
+                    message.Type == "orders.order-cancelled.v2");
             Assert.Null(outboxMessage.ProcessedOnUtc);
             var integrationEvent =
                 JsonSerializer.Deserialize<OrderCancelledIntegrationEvent>(
@@ -201,8 +208,14 @@ public class OrderLifecycleIntegrationTests
                 order.TotalAmount,
                 integrationEvent.TotalAmount);
             Assert.Equal(
-                1,
+                2,
                 integrationEvent.SchemaVersion);
+            Assert.Equal(
+                customer.Name,
+                integrationEvent.Customer.Name);
+            Assert.Equal(
+                customer.Email,
+                integrationEvent.Customer.Email);
         }
         // STOCK MUST RETURN TO 10
         var productAfterCancellation = await _client

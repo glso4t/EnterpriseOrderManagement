@@ -7,26 +7,31 @@ using EnterpriseOrderManagement.Api.Models;
 namespace EnterpriseOrderManagement.Api.Events.Domain;
 
 public sealed class OrderConfirmedDomainEventHandler(
-    EnterpriseOrderManagementDbContext dbContext)
+    EnterpriseOrderManagementDbContext dbContext,
+    ICustomerSnapshotProvider customerSnapshotProvider)
     : IDomainEventHandler<OrderConfirmedDomainEvent>
 {
     private const string MessageType =
-        "orders.order-confirmed.v1";
+        "orders.order-confirmed.v2";
 
     private static readonly JsonSerializerOptions JsonOptions =
         new(JsonSerializerDefaults.Web);
 
-    public Task HandleAsync(
+    public async Task HandleAsync(
         OrderConfirmedDomainEvent domainEvent,
         CancellationToken cancellationToken = default)
     {
+        var customerSnapshot = await customerSnapshotProvider.GetAsync(
+            domainEvent.CustomerId,
+            cancellationToken);
         var integrationEvent = new OrderConfirmedIntegrationEvent(
             EventId: Guid.NewGuid(),
             OrderId: domainEvent.OrderId,
             CustomerId: domainEvent.CustomerId,
+            Customer: customerSnapshot,
             TotalAmount: domainEvent.TotalAmount,
             OccurredOnUtc: domainEvent.OccurredOnUtc,
-            SchemaVersion: 1
+            SchemaVersion: 2
         );
 
         var outboxMessage = new OutboxMessage
@@ -42,7 +47,5 @@ public sealed class OrderConfirmedDomainEventHandler(
         // Only adds the message to the DbContext.
         // The caller's transaction saves it together with the business change.
         dbContext.OutboxMessages.Add(outboxMessage);
-
-        return Task.CompletedTask;
     }
 }
