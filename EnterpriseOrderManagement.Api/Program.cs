@@ -11,6 +11,7 @@ using EnterpriseOrderManagement.Api.OpenApi;
 using EnterpriseOrderManagement.Api.Models;
 using EnterpriseOrderManagement.Api.Events.Domain;
 using EnterpriseOrderManagement.Api.Events.Integration;
+using EnterpriseOrderManagement.Api.BackgroundServices;
 
 using System.Threading.RateLimiting;
 using System.IdentityModel.Tokens.Jwt;
@@ -291,8 +292,11 @@ builder.Services.AddScoped<
 builder.Services.AddScoped<
     ICustomerSnapshotProvider,
     CustomerSnapshotProvider>();
-var app = builder.Build();
 
+builder.Services.AddHostedService<
+    OutboxPublisherBackgroundService>();
+
+var app = builder.Build();
 
 // Centralized Exception Handling
 app.UseExceptionHandler();
