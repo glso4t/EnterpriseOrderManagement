@@ -296,6 +296,13 @@ builder.Services.AddScoped<
 builder.Services.AddScoped<
     OutboxMessageClaimService>();
 
+builder.Services.AddScoped<
+    OutboxMessageCompletionService>();
+
+builder.Services.AddSingleton<
+    IIntegrationEventPublisher,
+    LoggingIntegrationEventPublisher>();
+
 builder.Services.AddHostedService<
     OutboxPublisherBackgroundService>();
 
