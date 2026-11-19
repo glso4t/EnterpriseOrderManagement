@@ -234,6 +234,10 @@ builder.Services.Configure<InventorySettings>(
     builder.Configuration.GetSection(
         InventorySettings.SectionName));
 
+// RabbitMQ Settings
+builder.Services.Configure<RabbitMqSettings>(
+    builder.Configuration.GetSection(
+        RabbitMqSettings.SectionName));
 
 // Product Services
 builder.Services.AddScoped<
@@ -302,6 +306,14 @@ builder.Services.AddScoped<
 builder.Services.AddSingleton<
     IIntegrationEventPublisher,
     LoggingIntegrationEventPublisher>();
+
+// RabbitMQ Connection
+builder.Services.AddSingleton<
+    RabbitMqConnectionManager>();
+
+// RabbitMQ Topology
+builder.Services.AddHostedService<
+    RabbitMqTopologyHostedService>();
 
 builder.Services.AddHostedService<
     OutboxPublisherBackgroundService>();

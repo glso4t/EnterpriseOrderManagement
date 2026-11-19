@@ -6,11 +6,7 @@ using System.Globalization;
 using System.Reflection;
 using System.Security.Claims;
 
-using EnterpriseOrderManagement.Api.Models;
-
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore;
 
 namespace EnterpriseOrderManagement.Api.Data;
 
