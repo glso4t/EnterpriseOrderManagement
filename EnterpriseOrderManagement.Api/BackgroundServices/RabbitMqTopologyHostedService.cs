@@ -87,7 +87,7 @@ public sealed class RabbitMqTopologyHostedService(
         await channel.QueueBindAsync(
             queue: QueueName,
             exchange: ExchangeName,
-            routingKey: RoutingKeyPattern,
+            routingKey: "orders.#",
             cancellationToken: cancellationToken);
 
         logger.LogInformation(

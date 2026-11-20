@@ -18,7 +18,7 @@ public sealed class OutboxPublisherBackgroundService(
     private static readonly TimeSpan LeaseDuration =
         TimeSpan.FromMinutes(1);
 
-    private const int BatchSize = 50;
+    private const int BatchSize = 5;
 
     protected override async Task ExecuteAsync(
         CancellationToken stoppingToken)

@@ -305,8 +305,7 @@ builder.Services.AddScoped<
 
 builder.Services.AddSingleton<
     IIntegrationEventPublisher,
-    LoggingIntegrationEventPublisher>();
-
+    RabbitMqIntegrationEventPublisher>();
 // RabbitMQ Connection
 builder.Services.AddSingleton<
     RabbitMqConnectionManager>();
