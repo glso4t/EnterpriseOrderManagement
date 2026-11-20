@@ -66,18 +66,22 @@ public sealed class SqlServerTestWebApplicationFactory
 
         builder.ConfigureTestServices(services =>
         {
-            //αφαιρούμε μόνο τον Outbox Publisher από το test host. Δεν επηρεάζουμε μελλοντικά άλλους hosted services
-// Remove only the Outbox Publisher from the test host.
-        var outboxHostedService = services.FirstOrDefault(
-            descriptor =>
-                descriptor.ServiceType == typeof(IHostedService) &&
-                descriptor.ImplementationType ==
-                    typeof(OutboxPublisherBackgroundService));
+            // Remove the hosted services that need external infrastructure
+            // (the Outbox Publisher and the RabbitMQ topology initializer).
+            // The integration tests must not depend on a running broker.
+            var hostedServicesToRemove = services
+                .Where(descriptor =>
+                    descriptor.ServiceType == typeof(IHostedService) &&
+                    (descriptor.ImplementationType ==
+                        typeof(OutboxPublisherBackgroundService) ||
+                    descriptor.ImplementationType ==
+                        typeof(RabbitMqTopologyHostedService)))
+                .ToList();
 
-        if (outboxHostedService is not null)
-        {
-            services.Remove(outboxHostedService);
-        }
+            foreach (var descriptor in hostedServicesToRemove)
+            {
+                services.Remove(descriptor);
+            }
 
             services
                 .AddAuthentication(options =>

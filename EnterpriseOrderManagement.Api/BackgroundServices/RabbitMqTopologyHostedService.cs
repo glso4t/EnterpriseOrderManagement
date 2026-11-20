@@ -6,43 +6,88 @@ using RabbitMQ.Client;
 
 namespace EnterpriseOrderManagement.Api.BackgroundServices;
 
+
+// Declares the RabbitMQ topology in the background.
+// The API must start, and keep accepting requests, even when the broker
+// is down: the Outbox keeps the events until the broker is back.
 public sealed class RabbitMqTopologyHostedService(
     RabbitMqConnectionManager connectionManager,
     ILogger<RabbitMqTopologyHostedService> logger)
-    : IHostedService
+    : BackgroundService
 {
     private const string ExchangeName = "enterprise.events";
     private const string QueueName = "notification-service";
     private const string RoutingKeyPattern = "order.#";
+    private static readonly TimeSpan RetryDelay =
+        TimeSpan.FromSeconds(10);
 
-    public async Task StartAsync(CancellationToken cancellationToken)
+    protected override async Task ExecuteAsync(
+        CancellationToken stoppingToken)
+    {
+        while (!stoppingToken.IsCancellationRequested)
+        {
+            try
+            {
+                await DeclareTopologyAsync(stoppingToken);
+                return;
+            }
+            catch (OperationCanceledException)
+                when (stoppingToken.IsCancellationRequested)
+            {
+                return;
+            }
+            catch (Exception exception)
+            {
+                logger.LogWarning(
+                    "RabbitMQ topology declaration failed: {Reason} Retrying in {RetryDelay}.",
+                    exception.Message,
+                    RetryDelay);
+
+                try
+                {
+                    await Task.Delay(RetryDelay, stoppingToken);
+                }
+                catch (OperationCanceledException)
+                {
+                    return;
+                }
+            }
+        }
+    }
+
+    private async Task DeclareTopologyAsync(
+        CancellationToken cancellationToken)
     {
         logger.LogInformation(
             "Initializing RabbitMQ topology...");
 
         var connection = await connectionManager.GetConnectionAsync(
             cancellationToken);
+
         await using var channel = await connection.CreateChannelAsync(
             cancellationToken: cancellationToken);
 
-        await channel.ExchangeDeclareAsync( //Δημιουργεί το enterprise.events ως Topic Exchange
+        // Topic exchange: routes messages by routing key pattern.
+        await channel.ExchangeDeclareAsync(
             exchange: ExchangeName,
             type: ExchangeType.Topic,
             durable: true,
             autoDelete: false,
             cancellationToken: cancellationToken);
 
-        await channel.QueueDeclareAsync(    //Δημιουργεί την notification-service
+        // Durable queue: survives a broker restart.
+        await channel.QueueDeclareAsync(
             queue: QueueName,
-            durable: true,   //παραμένει μετά από restart.
-            exclusive: false,   //δεν ανήκει αποκλειστικά σε μία σύνδεση.
-            autoDelete: false,  //δεν διαγράφεται αυτόματα όταν αποσυνδεθεί ο Consumer.
+            durable: true,
+            exclusive: false,
+            autoDelete: false,
             cancellationToken: cancellationToken);
 
-        await channel.QueueBindAsync(   //Συνδέει την Queue με το Exchange μέσω του routing pattern order.#.
+        // Binds the queue to the exchange with the routing key pattern.
+        await channel.QueueBindAsync(
             queue: QueueName,
             exchange: ExchangeName,
-            routingKey: RoutingKeyPattern, 
+            routingKey: RoutingKeyPattern,
             cancellationToken: cancellationToken);
 
         logger.LogInformation(
@@ -51,12 +96,5 @@ public sealed class RabbitMqTopologyHostedService(
             ExchangeName,
             QueueName,
             RoutingKeyPattern);
-    }
-
-    public Task StopAsync(CancellationToken cancellationToken)
-    {
-        logger.LogInformation(
-            "RabbitMQ topology hosted service is stopping.");
-        return Task.CompletedTask;
     }
 }
