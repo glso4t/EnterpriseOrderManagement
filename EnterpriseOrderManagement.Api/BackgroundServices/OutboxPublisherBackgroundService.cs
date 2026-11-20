@@ -25,7 +25,9 @@ public sealed class OutboxPublisherBackgroundService(
     {
         logger.LogInformation(
             "Outbox Publisher background service started.");
+
         using var timer = new PeriodicTimer(PollingInterval);
+
         try
         {
             do
@@ -53,6 +55,7 @@ public sealed class OutboxPublisherBackgroundService(
         {
             // Expected when the application is shutting down.
         }
+
         logger.LogInformation(
             "Outbox Publisher background service stopped.");
     }
@@ -64,26 +67,34 @@ public sealed class OutboxPublisherBackgroundService(
         while (!cancellationToken.IsCancellationRequested)
         {
             await using var scope = scopeFactory.CreateAsyncScope();
+
             var claimService = scope.ServiceProvider
                 .GetRequiredService<OutboxMessageClaimService>();
+
             var completionService = scope.ServiceProvider
                 .GetRequiredService<OutboxMessageCompletionService>();
+
             var publisher = scope.ServiceProvider
                 .GetRequiredService<IIntegrationEventPublisher>();
+
             var claimedMessages = await claimService
                 .ClaimPendingMessagesAsync(
                     BatchSize,
                     LeaseDuration,
                     cancellationToken);
+
             if (claimedMessages.Count == 0)
             {
                 logger.LogDebug(
                     "No claimable Outbox messages found.");
+
                 return;
             }
+
             logger.LogInformation(
                 "Outbox Publisher claimed {MessageCount} message(s).",
                 claimedMessages.Count);
+
             foreach (var message in claimedMessages)
             {
                 await ProcessMessageAsync(
@@ -92,6 +103,7 @@ public sealed class OutboxPublisherBackgroundService(
                     completionService,
                     cancellationToken);
             }
+
             // A partial batch means the backlog is drained.
             if (claimedMessages.Count < BatchSize)
             {
@@ -108,9 +120,12 @@ public sealed class OutboxPublisherBackgroundService(
     {
         // Every claimed message carries the token of its claim.
         var lockToken = message.LockToken!.Value;
+
         try
         {
-            await publisher.PublishAsync(message, cancellationToken);
+            await publisher.PublishAsync(
+                message,
+                cancellationToken);
         }
         catch (OperationCanceledException)
             when (cancellationToken.IsCancellationRequested)
@@ -125,17 +140,29 @@ public sealed class OutboxPublisherBackgroundService(
                 exception,
                 "Failed to publish Outbox message {MessageId}.",
                 message.Id);
-            await completionService.MarkFailedAsync(
+
+            var markedFailed = await completionService.MarkFailedAsync(
                 message.Id,
                 lockToken,
+                message.AttemptCount,
                 exception.Message,
                 cancellationToken);
+
+            if (!markedFailed)
+            {
+                logger.LogWarning(
+                    "Could not schedule retry for Outbox message {MessageId} because its lease was lost.",
+                    message.Id);
+            }
+
             return;
         }
+
         var marked = await completionService.MarkProcessedAsync(
             message.Id,
             lockToken,
             cancellationToken);
+
         if (!marked)
         {
             logger.LogWarning(

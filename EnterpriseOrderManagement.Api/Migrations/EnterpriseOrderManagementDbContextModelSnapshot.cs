@@ -227,18 +227,32 @@ namespace EnterpriseOrderManagement.Api.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<int>("AttemptCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
                     b.Property<string>("Content")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTimeOffset?>("DeadLetteredOnUtc")
+                        .HasColumnType("datetimeoffset");
 
                     b.Property<string>("Error")
                         .HasMaxLength(2000)
                         .HasColumnType("nvarchar(2000)");
 
+                    b.Property<DateTimeOffset?>("LastAttemptOnUtc")
+                        .HasColumnType("datetimeoffset");
+
                     b.Property<Guid?>("LockToken")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<DateTimeOffset?>("LockedUntilUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset?>("NextAttemptOnUtc")
                         .HasColumnType("datetimeoffset");
 
                     b.Property<DateTimeOffset>("OccurredOnUtc")
@@ -254,7 +268,7 @@ namespace EnterpriseOrderManagement.Api.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ProcessedOnUtc", "LockedUntilUtc", "OccurredOnUtc");
+                    b.HasIndex("ProcessedOnUtc", "DeadLetteredOnUtc", "NextAttemptOnUtc", "LockedUntilUtc", "OccurredOnUtc");
 
                     b.ToTable("OutboxMessages");
                 });

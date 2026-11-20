@@ -81,6 +81,7 @@ public class OutboxMessageCompletionIntegrationTests
             var marked = await completionService.MarkFailedAsync(
                 message.Id,
                 lockToken,
+                1,
                 "broker unavailable",
                 CancellationToken.None);
 
@@ -91,7 +92,8 @@ public class OutboxMessageCompletionIntegrationTests
 
         Assert.Equal("broker unavailable", stored.Error);
         Assert.Null(stored.ProcessedOnUtc);
-        Assert.Equal(lockToken, stored.LockToken);
+        Assert.Null(stored.LockToken);
+        Assert.Null(stored.LockedUntilUtc);
     }
 
     [Fact]

@@ -348,9 +348,14 @@ public class EnterpriseOrderManagementDbContext(
                 .IsRequired();
             entity.Property(message => message.Error)
                 .HasMaxLength(2000);
+            entity.Property(message => message.AttemptCount)
+                .HasDefaultValue(0)
+                .IsRequired();
             entity.HasIndex(message => new
             {
                 message.ProcessedOnUtc,
+                message.DeadLetteredOnUtc,
+                message.NextAttemptOnUtc,
                 message.LockedUntilUtc,
                 message.OccurredOnUtc
             });

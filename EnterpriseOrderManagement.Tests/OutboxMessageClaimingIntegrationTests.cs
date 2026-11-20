@@ -105,4 +105,68 @@ public class OutboxMessageClaimingIntegrationTests
             firstClaim[0].LockToken,
             secondClaim[0].LockToken);
     }
+
+    //ελέγχει ότι τα μηνύματα που δεν είναι ακόμη έτοιμα για retry και τα μηνύματα που έχουν μπει σε quarantine παραλείπονται
+    [Fact]
+    public async Task ClaimPendingMessages_ShouldSkipMessagesNotYetDueOrQuarantined()
+    {
+        var nowUtc = DateTimeOffset.UtcNow;
+
+        var readyMessage = new OutboxMessage
+        {
+            Id = Guid.NewGuid(),
+            Type = "tests.ready.v1",
+            Content = "{}",
+            OccurredOnUtc = nowUtc
+        };
+
+        var delayedMessage = new OutboxMessage
+        {
+            Id = Guid.NewGuid(),
+            Type = "tests.delayed.v1",
+            Content = "{}",
+            OccurredOnUtc = nowUtc.AddMilliseconds(1),
+            NextAttemptOnUtc = nowUtc.AddMinutes(5)
+        };
+
+        var quarantinedMessage = new OutboxMessage
+        {
+            Id = Guid.NewGuid(),
+            Type = "tests.quarantined.v1",
+            Content = "{}",
+            OccurredOnUtc = nowUtc.AddMilliseconds(2),
+            DeadLetteredOnUtc = nowUtc
+        };
+
+        using (var seedScope = _factory.Services.CreateScope())
+        {
+            var dbContext = seedScope.ServiceProvider
+                .GetRequiredService<EnterpriseOrderManagementDbContext>();
+
+            await dbContext.OutboxMessages.AddRangeAsync(
+                readyMessage,
+                delayedMessage,
+                quarantinedMessage);
+
+            await dbContext.SaveChangesAsync();
+        }
+
+        using var scope = _factory.Services.CreateScope();
+
+        var claimService = scope.ServiceProvider
+            .GetRequiredService<OutboxMessageClaimService>();
+
+        var claimed = await claimService.ClaimPendingMessagesAsync(
+            10,
+            TimeSpan.FromMinutes(1),
+            CancellationToken.None);
+
+        var claimedIds = claimed
+            .Select(message => message.Id)
+            .ToHashSet();
+
+        Assert.Contains(readyMessage.Id, claimedIds);
+        Assert.DoesNotContain(delayedMessage.Id, claimedIds);
+        Assert.DoesNotContain(quarantinedMessage.Id, claimedIds);
+    }
 }

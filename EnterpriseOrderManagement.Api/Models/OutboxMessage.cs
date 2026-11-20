@@ -22,6 +22,18 @@ public class OutboxMessage
     // Identifies the worker claim that owns this message.
     public Guid? LockToken { get; set; }
 
+    // Number of times a worker has claimed this message.
+    public int AttemptCount { get; set; }
+
+    // When the latest publishing attempt was claimed.
+    public DateTimeOffset? LastAttemptOnUtc { get; set; }
+
+    // Earliest time at which the message may be claimed again.
+    public DateTimeOffset? NextAttemptOnUtc { get; set; }
+
+    // Non-null means the message was quarantined.
+    public DateTimeOffset? DeadLetteredOnUtc { get; set; }
+
     // Stores the last publishing error, if any.
     public string? Error { get; set; }
 }
