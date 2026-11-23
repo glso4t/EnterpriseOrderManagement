@@ -1,3 +1,6 @@
+
+using System.Collections.Concurrent;
+
 using EnterpriseOrderManagement.Api.Events.Integration;
 using EnterpriseOrderManagement.Api.Models;
 
@@ -17,6 +20,9 @@ public sealed class OutboxPublisherBackgroundService(
 
     private static readonly TimeSpan LeaseDuration =
         TimeSpan.FromMinutes(1);
+
+    private static readonly TimeSpan LeaseRenewalInterval =
+        TimeSpan.FromTicks(LeaseDuration.Ticks / 3);
 
     private const int BatchSize = 5;
 
@@ -95,14 +101,13 @@ public sealed class OutboxPublisherBackgroundService(
                 "Outbox Publisher claimed {MessageCount} message(s).",
                 claimedMessages.Count);
 
-            foreach (var message in claimedMessages)
-            {
-                await ProcessMessageAsync(
-                    message,
-                    publisher,
-                    completionService,
-                    cancellationToken);
-            }
+            // All messages in a claimed batch already have an active lease.
+            // Renew every still-active lease while the batch is processed.
+            await ProcessClaimedBatchAsync(
+                claimedMessages,
+                publisher,
+                completionService,
+                cancellationToken);
 
             // A partial batch means the backlog is drained.
             if (claimedMessages.Count < BatchSize)
@@ -112,10 +117,129 @@ public sealed class OutboxPublisherBackgroundService(
         }
     }
 
+    private async Task ProcessClaimedBatchAsync(
+        IReadOnlyCollection<OutboxMessage> claimedMessages,
+        IIntegrationEventPublisher publisher,
+        OutboxMessageCompletionService completionService,
+        CancellationToken cancellationToken)
+    {
+        var activeClaims = new ConcurrentDictionary<Guid, Guid>(
+            claimedMessages.ToDictionary(
+                message => message.Id,
+                message => message.LockToken
+                    ?? throw new InvalidOperationException(
+                        $"Claimed Outbox message {message.Id} has no lock token.")));
+
+        using var renewalCts =
+            CancellationTokenSource.CreateLinkedTokenSource(
+                cancellationToken);
+
+        var renewalTask = RenewActiveLeasesAsync(
+            activeClaims,
+            renewalCts.Token);
+
+        try
+        {
+            foreach (var message in claimedMessages)
+            {
+                try
+                {
+                    void StopLeaseRenewal()
+                    {
+                        activeClaims.TryRemove(message.Id, out _);
+                    }
+
+                    await ProcessMessageAsync(
+                        message,
+                        publisher,
+                        completionService,
+                        StopLeaseRenewal,
+                        cancellationToken);
+                }
+                finally
+                {
+                    // Once completed or failed, this message no longer
+                    // needs its lease renewed.
+                    activeClaims.TryRemove(message.Id, out _);
+                }
+            }
+        }
+        finally
+        {
+            renewalCts.Cancel();
+
+            try
+            {
+                await renewalTask;
+            }
+            catch (OperationCanceledException)
+                when (renewalCts.IsCancellationRequested)
+            {
+                // Expected when the batch has finished or the host stops.
+            }
+        }
+    }
+
+    private async Task RenewActiveLeasesAsync(
+        ConcurrentDictionary<Guid, Guid> activeClaims,
+        CancellationToken cancellationToken)
+    {
+        using var timer = new PeriodicTimer(LeaseRenewalInterval);
+
+        while (await timer.WaitForNextTickAsync(cancellationToken))
+        {
+            await using var scope = scopeFactory.CreateAsyncScope();
+
+            var leaseRenewalService = scope.ServiceProvider
+                .GetRequiredService<OutboxMessageLeaseRenewalService>();
+
+            // Snapshot avoids iterating a collection while messages are
+            // being removed from the active batch.
+            foreach (var claim in activeClaims.ToArray())
+            {
+                bool renewed;
+
+                try
+                {
+                    renewed = await leaseRenewalService.RenewLeaseAsync(
+                        claim.Key,
+                        claim.Value,
+                        LeaseDuration,
+                        cancellationToken);
+                }
+                catch (OperationCanceledException)
+                    when (cancellationToken.IsCancellationRequested)
+                {
+                    throw;
+                }
+                catch (Exception exception)
+                {
+                    // A transient database error is logged. The next
+                    // heartbeat will try again while the lease is valid.
+                    logger.LogError(
+                        exception,
+                        "Could not renew the lease for Outbox message {MessageId}.",
+                        claim.Key);
+
+                    continue;
+                }
+
+                if (!renewed &&
+                    activeClaims.TryRemove(claim.Key, out _))
+                {
+                    logger.LogWarning(
+                        "Lease for Outbox message {MessageId} could not be renewed. The claim may have expired or changed owner.",
+                        claim.Key);
+                }
+            }
+        }
+    }
+
     private async Task ProcessMessageAsync(
         OutboxMessage message,
         IIntegrationEventPublisher publisher,
         OutboxMessageCompletionService completionService,
+        Action stopLeaseRenewal,
         CancellationToken cancellationToken)
     {
         // Every claimed message carries the token of its claim.
@@ -141,6 +265,9 @@ public sealed class OutboxPublisherBackgroundService(
                 "Failed to publish Outbox message {MessageId}.",
                 message.Id);
 
+            // Stop the heartbeat before releasing the claim in the database.
+            stopLeaseRenewal();
+
             var markedFailed = await completionService.MarkFailedAsync(
                 message.Id,
                 lockToken,
@@ -157,6 +284,9 @@ public sealed class OutboxPublisherBackgroundService(
 
             return;
         }
+
+        // Stop the heartbeat before completing and releasing the claim.
+        stopLeaseRenewal();
 
         var marked = await completionService.MarkProcessedAsync(
             message.Id,

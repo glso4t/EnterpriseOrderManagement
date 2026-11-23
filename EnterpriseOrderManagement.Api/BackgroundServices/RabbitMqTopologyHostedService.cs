@@ -17,7 +17,7 @@ public sealed class RabbitMqTopologyHostedService(
 {
     private const string ExchangeName = "enterprise.events";
     private const string QueueName = "notification-service";
-    private const string RoutingKeyPattern = "order.#";
+    private const string RoutingKeyPattern = "orders.#";
     private static readonly TimeSpan RetryDelay =
         TimeSpan.FromSeconds(10);
 
@@ -87,7 +87,7 @@ public sealed class RabbitMqTopologyHostedService(
         await channel.QueueBindAsync(
             queue: QueueName,
             exchange: ExchangeName,
-            routingKey: "orders.#",
+            routingKey: RoutingKeyPattern,
             cancellationToken: cancellationToken);
 
         logger.LogInformation(

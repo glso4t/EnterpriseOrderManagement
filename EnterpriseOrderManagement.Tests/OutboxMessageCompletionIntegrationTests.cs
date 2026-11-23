@@ -148,6 +148,55 @@ public class OutboxMessageCompletionIntegrationTests
             CancellationToken.None));
     }
 
+
+
+    [Fact]
+    public async Task ExpiredLease_CannotCompleteOrScheduleRetry()
+    {
+        var lockToken = Guid.NewGuid();
+        var message = await SeedClaimedMessageAsync(lockToken);
+
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider
+                .GetRequiredService<EnterpriseOrderManagementDbContext>();
+
+            await dbContext.OutboxMessages
+                .Where(stored => stored.Id == message.Id)
+                .ExecuteUpdateAsync(setters => setters.SetProperty(
+                    stored => stored.LockedUntilUtc,
+                    (DateTimeOffset?)DateTimeOffset.UtcNow.AddMinutes(-1)));
+        }
+
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var completionService = scope.ServiceProvider
+                .GetRequiredService<OutboxMessageCompletionService>();
+
+            Assert.False(await completionService.MarkProcessedAsync(
+                message.Id,
+                lockToken,
+                CancellationToken.None));
+
+            Assert.False(await completionService.MarkFailedAsync(
+                message.Id,
+                lockToken,
+                1,
+                "late failure from expired worker",
+                CancellationToken.None));
+        }
+
+        var stored = await ReadMessageAsync(message.Id);
+
+        Assert.Null(stored.ProcessedOnUtc);
+        Assert.Null(stored.Error);
+        Assert.Equal(lockToken, stored.LockToken);
+        Assert.NotNull(stored.LockedUntilUtc);
+        Assert.True(stored.LockedUntilUtc.Value < DateTimeOffset.UtcNow);
+    }
+
+
+
     // Seeds a message that is already claimed (valid lease and token).
     private async Task<OutboxMessage> SeedClaimedMessageAsync(
         Guid lockToken)

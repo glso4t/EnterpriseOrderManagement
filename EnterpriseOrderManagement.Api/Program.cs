@@ -303,6 +303,9 @@ builder.Services.AddScoped<
 builder.Services.AddScoped<
     OutboxMessageCompletionService>();
 
+builder.Services.AddScoped<
+    OutboxMessageLeaseRenewalService>();
+
 builder.Services.AddSingleton<
     IIntegrationEventPublisher,
     RabbitMqIntegrationEventPublisher>();

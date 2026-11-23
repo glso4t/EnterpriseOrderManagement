@@ -36,6 +36,7 @@ public sealed class OutboxMessageCompletionService(
                     [NextAttemptOnUtc] = NULL
                 WHERE [Id] = {messageId}
                     AND [LockToken] = {lockToken}
+                    AND [LockedUntilUtc] > TODATETIMEOFFSET(SYSUTCDATETIME(), '+00:00')
                     AND [ProcessedOnUtc] IS NULL
                     AND [DeadLetteredOnUtc] IS NULL;
                 """,
@@ -90,6 +91,7 @@ public sealed class OutboxMessageCompletionService(
                     [LockToken] = NULL
                 WHERE [Id] = {messageId}
                     AND [LockToken] = {lockToken}
+                    AND [LockedUntilUtc] > TODATETIMEOFFSET(SYSUTCDATETIME(), '+00:00')
                     AND [ProcessedOnUtc] IS NULL
                     AND [DeadLetteredOnUtc] IS NULL;
                 """,
