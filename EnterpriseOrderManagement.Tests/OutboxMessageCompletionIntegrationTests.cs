@@ -19,6 +19,16 @@ public class OutboxMessageCompletionIntegrationTests
         _factory.InitializeDatabase();
     }
 
+    private static Task<DateTimeOffset> ReadDatabaseUtcAsync(
+        EnterpriseOrderManagementDbContext dbContext)
+    {
+        return dbContext.Database.SqlQuery<DateTimeOffset>(
+            $"SELECT TODATETIMEOFFSET(SYSUTCDATETIME(), '+00:00') AS [Value]")
+            .SingleAsync();
+    }
+
+
+
     [Fact]
     public async Task MarkProcessed_WithOwnedToken_MarksMessageAsProcessed()
     {
@@ -196,25 +206,58 @@ public class OutboxMessageCompletionIntegrationTests
     }
 
 
+    [Fact]
+    public async Task MarkFailed_SchedulesFirstRetryWithinJitterRange()
+    {
+        await AssertRetryDelayAsync(1, 4, 6);
+    }
+
+    [Fact]
+    public async Task MarkFailed_BelowMaxAttempts_RespectsMaximumRetryDelay()
+    {
+        // Attempt 9: capped base 900 seconds, jitter, then final cap.
+        await AssertRetryDelayAsync(9, 720, 900);
+    }
+
+    [Fact]
+    public async Task MarkFailed_AtMaxAttempts_QuarantinesMessage()
+    {
+        await AssertQuarantineAsync(
+            OutboxMessageCompletionService.MaxAttempts);
+    }
+
+    [Fact]
+    public async Task MarkFailed_AboveMaxAttempts_QuarantinesMessage()
+    {
+        await AssertQuarantineAsync(
+            OutboxMessageCompletionService.MaxAttempts + 1);
+    }
+
+
 
     // Seeds a message that is already claimed (valid lease and token).
+    
     private async Task<OutboxMessage> SeedClaimedMessageAsync(
-        Guid lockToken)
+        Guid lockToken, int attemptCount = 1)
     {
+        using var scope = _factory.Services.CreateScope();
+
+        var dbContext = scope.ServiceProvider
+            .GetRequiredService<EnterpriseOrderManagementDbContext>();
+
+        var now = await ReadDatabaseUtcAsync(dbContext);
+
         var message = new OutboxMessage
         {
             Id = Guid.NewGuid(),
             Type = "tests.completion.v1",
             Content = "{}",
-            OccurredOnUtc = DateTimeOffset.UtcNow,
+            OccurredOnUtc = now,
+            AttemptCount = attemptCount,
+            LastAttemptOnUtc = now,
             LockToken = lockToken,
-            LockedUntilUtc = DateTimeOffset.UtcNow.AddMinutes(1)
+            LockedUntilUtc = now.AddMinutes(1)
         };
-
-        using var scope = _factory.Services.CreateScope();
-
-        var dbContext = scope.ServiceProvider
-            .GetRequiredService<EnterpriseOrderManagementDbContext>();
 
         dbContext.OutboxMessages.Add(message);
 
@@ -222,6 +265,7 @@ public class OutboxMessageCompletionIntegrationTests
 
         return message;
     }
+
 
     private async Task<OutboxMessage> ReadMessageAsync(Guid messageId)
     {
@@ -233,5 +277,119 @@ public class OutboxMessageCompletionIntegrationTests
         return await dbContext.OutboxMessages
             .AsNoTracking()
             .SingleAsync(stored => stored.Id == messageId);
+    }
+
+    private async Task<(
+        OutboxMessage Stored,
+        DateTimeOffset Before,
+        DateTimeOffset After)>
+        FailAndReadAsync(OutboxMessage message)
+    {
+        using var scope = _factory.Services.CreateScope();
+
+        var dbContext = scope.ServiceProvider
+            .GetRequiredService<EnterpriseOrderManagementDbContext>();
+
+        var completionService = scope.ServiceProvider
+            .GetRequiredService<OutboxMessageCompletionService>();
+
+        var before = await ReadDatabaseUtcAsync(dbContext);
+
+        var marked = await completionService.MarkFailedAsync(
+            message.Id,
+            message.LockToken!.Value,
+            message.AttemptCount,
+            "test failure",
+            CancellationToken.None);
+
+        var after = await ReadDatabaseUtcAsync(dbContext);
+
+        Assert.True(marked);
+
+        return (
+            await ReadMessageAsync(message.Id),
+            before,
+            after);
+    }
+    private async Task AssertRetryDelayAsync(
+        int attemptCount,
+        int minimumSeconds,
+        int maximumSeconds)
+    {
+        var message = await SeedClaimedMessageAsync(
+            Guid.NewGuid(),
+            attemptCount);
+
+        try
+        {
+            var (stored, before, after) =
+                await FailAndReadAsync(message);
+
+            Assert.Equal(attemptCount, stored.AttemptCount);
+
+            Assert.Null(stored.DeadLetteredOnUtc);
+
+            Assert.NotNull(stored.NextAttemptOnUtc);
+
+            Assert.InRange(
+                stored.NextAttemptOnUtc.Value,
+                before.AddSeconds(minimumSeconds),
+                after.AddSeconds(maximumSeconds));
+
+            Assert.Null(stored.ProcessedOnUtc);
+            Assert.Null(stored.LockToken);
+            Assert.Null(stored.LockedUntilUtc);
+
+            Assert.Equal("test failure", stored.Error);
+        }
+        finally
+        {
+            await DeleteTestMessageAsync(message.Id);
+        }
+    }
+
+    private async Task DeleteTestMessageAsync(Guid messageId)
+    {
+        using var scope = _factory.Services.CreateScope();
+
+        var dbContext = scope.ServiceProvider
+            .GetRequiredService<EnterpriseOrderManagementDbContext>();
+
+        await dbContext.OutboxMessages
+            .Where(message => message.Id == messageId)
+            .ExecuteDeleteAsync();
+    }
+
+    private async Task AssertQuarantineAsync(int attemptCount)
+    {
+        var message = await SeedClaimedMessageAsync(
+            Guid.NewGuid(),
+            attemptCount);
+
+        try
+        {
+            var (stored, before, after) =
+                await FailAndReadAsync(message);
+
+            Assert.Equal(attemptCount, stored.AttemptCount);
+
+            Assert.NotNull(stored.DeadLetteredOnUtc);
+
+            Assert.InRange(
+                stored.DeadLetteredOnUtc.Value,
+                before,
+                after);
+
+            Assert.Null(stored.NextAttemptOnUtc);
+            Assert.Null(stored.ProcessedOnUtc);
+            Assert.Null(stored.LockToken);
+            Assert.Null(stored.LockedUntilUtc);
+
+            Assert.Equal("test failure", stored.Error);
+        }
+        finally
+        {
+            await DeleteTestMessageAsync(message.Id);
+        }
     }
 }

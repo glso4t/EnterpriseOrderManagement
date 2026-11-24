@@ -1,5 +1,6 @@
 
 using System.Text;
+using EnterpriseOrderManagement.Api.Configuration;
 using EnterpriseOrderManagement.Api.Models;
 using EnterpriseOrderManagement.Api.Services.Interfaces;
 using RabbitMQ.Client;
@@ -15,7 +16,6 @@ public sealed class RabbitMqIntegrationEventPublisher(
     ILogger<RabbitMqIntegrationEventPublisher> logger)
     : IIntegrationEventPublisher, IAsyncDisposable
 {
-    private const string ExchangeName = "enterprise.events";
 
     // A single message must be confirmed within this time. The timeout also
     // includes waiting for exclusive access to the shared publisher channel.
@@ -84,7 +84,7 @@ public sealed class RabbitMqIntegrationEventPublisher(
                 // after RabbitMQ confirms the publication. mandatory=true
                 // also makes an unroutable message fail.
                 await channel.BasicPublishAsync(
-                    exchange: ExchangeName,
+                    exchange: RabbitMqTopology.MainExchangeName,
                     routingKey: routingKey,
                     mandatory: true,
                     basicProperties: properties,
