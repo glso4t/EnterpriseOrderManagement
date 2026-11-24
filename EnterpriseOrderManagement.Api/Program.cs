@@ -19,9 +19,11 @@ using System.Text;
 
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.Extensions.Options;
+
+using RabbitMQ.Client;
 
 const string FrontendCorsPolicy = "FrontendPolicy";
 
@@ -306,11 +308,33 @@ builder.Services.AddScoped<
 builder.Services.AddScoped<
     OutboxMessageLeaseRenewalService>();
 
+// RabbitMQ Connection Factory
+builder.Services.AddSingleton<IConnectionFactory>(
+    serviceProvider =>
+    {
+        var settings = serviceProvider
+            .GetRequiredService<IOptions<RabbitMqSettings>>()
+            .Value;
+        return new ConnectionFactory
+        {
+            HostName = settings.HostName,
+            Port = settings.Port,
+            UserName = settings.UserName,
+            Password = settings.Password,
+            VirtualHost = settings.VirtualHost,
+            AutomaticRecoveryEnabled = true,
+            NetworkRecoveryInterval = TimeSpan.FromSeconds(5),
+            TopologyRecoveryEnabled = true,
+            ClientProvidedName = "EnterpriseOrderManagement.Api"
+        };
+    });
+
 // RabbitMQ Connection
 builder.Services.AddSingleton<
     IRabbitMqConnectionManager,
     RabbitMqConnectionManager>();
 
+// RabbitMQ Publisher
 builder.Services.AddSingleton<
     IIntegrationEventPublisher,
     RabbitMqIntegrationEventPublisher>();

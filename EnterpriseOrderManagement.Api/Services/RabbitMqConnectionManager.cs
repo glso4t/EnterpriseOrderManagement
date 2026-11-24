@@ -1,23 +1,26 @@
-using EnterpriseOrderManagement.Api.Configuration;
-using Microsoft.Extensions.Options;
+
+using EnterpriseOrderManagement.Api.Events.Integration;
+using EnterpriseOrderManagement.Api.Services.Interfaces;
 using RabbitMQ.Client;
 
 namespace EnterpriseOrderManagement.Api.Services;
-using EnterpriseOrderManagement.Api.Services.Interfaces;
 
-//Διαβάζει τις ρυθμίσεις από το IOptions<RabbitMqSettings>.
-//Ελέγχει αν υπάρχει ήδη ανοιχτή σύνδεση.
-//Αν υπάρχει, την επαναχρησιμοποιεί.
-//Αν δεν υπάρχει, δημιουργεί ConnectionFactory με τα credentials μας.
-//Δημιουργεί τη σύνδεση με CreateConnectionAsync().
-//Όταν τερματιστεί η εφαρμογή, κλείνει και αποδεσμεύει τη σύνδεση.
+/// <summary>
+/// Owns one shared RabbitMQ connection.
+/// Initial connection failures are retried by callers.
+/// Network recovery of an established connection is handled
+/// by the RabbitMQ client.
+/// </summary>
 public sealed class RabbitMqConnectionManager(
-    IOptions<RabbitMqSettings> options)
-    : IAsyncDisposable, IRabbitMqConnectionManager
+    IConnectionFactory connectionFactory,
+    ILogger<RabbitMqConnectionManager> logger)
+    : IRabbitMqConnectionManager, IAsyncDisposable
 {
-    private readonly RabbitMqSettings _settings = options.Value;
     private readonly SemaphoreSlim _semaphore = new(1, 1);
+
     private IConnection? _connection;
+
+    private bool _disposed;
 
     public async Task<IConnection> GetConnectionAsync(
         CancellationToken cancellationToken = default)
@@ -26,24 +29,38 @@ public sealed class RabbitMqConnectionManager(
 
         try
         {
-            if (_connection is { IsOpen: true })
+            if (_disposed)
             {
-                return _connection;
+                throw new ObjectDisposedException(
+                    nameof(RabbitMqConnectionManager));
             }
 
-            var factory = new ConnectionFactory
+            // Reuse the existing connection.
+            if (_connection is not null)
             {
-                HostName = _settings.HostName,
-                Port = _settings.Port,
-                UserName = _settings.UserName,
-                Password = _settings.Password,
-                VirtualHost = _settings.VirtualHost,
-                AutomaticRecoveryEnabled = true,    //βοηθά στην επανασύνδεση μετά από απώλεια μιας ήδη επιτυχημένης σύνδεσης
-                ClientProvidedName = "EnterpriseOrderManagement.Api"
-            };
+                if (_connection.IsOpen)
+                {
+                    return _connection;
+                }
 
-            _connection = await factory.CreateConnectionAsync(
-                cancellationToken);
+                // A closed connection may be undergoing automatic
+                // recovery. Do not create a second connection.
+                throw new RabbitMqConnectionUnavailableException(
+                    "RabbitMQ connection is currently unavailable. " +
+                    "The existing connection has been retained.");
+            }
+
+            logger.LogInformation(
+                "Creating the initial RabbitMQ connection.");
+
+            // If this fails, _connection remains null and a later
+            // call can retry the initial connection attempt.
+            _connection = await connectionFactory
+                .CreateConnectionAsync(cancellationToken);
+
+            logger.LogInformation(
+                "RabbitMQ connection established.");
+
             return _connection;
         }
         finally
@@ -54,16 +71,51 @@ public sealed class RabbitMqConnectionManager(
 
     public async ValueTask DisposeAsync()
     {
-        if (_connection is not null)
+        await _semaphore.WaitAsync();
+
+        try
         {
-            if (_connection.IsOpen)
+            if (_disposed)
             {
-                await _connection.CloseAsync();
+                return;
             }
 
-            await _connection.DisposeAsync();
+            _disposed = true;
+
+            var connection = _connection;
             _connection = null;
+
+            if (connection is null)
+            {
+                return;
+            }
+
+            try
+            {
+                if (connection.IsOpen)
+                {
+                    await connection.CloseAsync();
+                }
+            }
+            catch (Exception exception)
+            {
+                logger.LogWarning(
+                    exception,
+                    "Could not gracefully close the RabbitMQ connection.");
+            }
+            finally
+            {
+                // Dispose even when the connection is closed,
+                // recovering or graceful close has failed.
+                await connection.DisposeAsync();
+            }
         }
-        _semaphore.Dispose();
+        finally
+        {
+            _semaphore.Release();
+        }
+
+        // Do not dispose the semaphore while other callers may
+        // still be waiting to acquire it.
     }
 }
