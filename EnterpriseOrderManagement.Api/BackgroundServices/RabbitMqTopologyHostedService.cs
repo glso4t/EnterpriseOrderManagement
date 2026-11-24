@@ -5,12 +5,13 @@ using Microsoft.Extensions.Logging;
 using RabbitMQ.Client;
 
 namespace EnterpriseOrderManagement.Api.BackgroundServices;
+using EnterpriseOrderManagement.Api.Services.Interfaces;
 
 // Declares the RabbitMQ exchanges, queues and bindings.
 // The API can start even when RabbitMQ is unavailable: the Outbox
 // keeps events until the broker becomes available again.
 public sealed class RabbitMqTopologyHostedService(
-    RabbitMqConnectionManager connectionManager,
+    IRabbitMqConnectionManager connectionManager,
     ILogger<RabbitMqTopologyHostedService> logger)
     : BackgroundService
 {

@@ -306,12 +306,14 @@ builder.Services.AddScoped<
 builder.Services.AddScoped<
     OutboxMessageLeaseRenewalService>();
 
+// RabbitMQ Connection
+builder.Services.AddSingleton<
+    IRabbitMqConnectionManager,
+    RabbitMqConnectionManager>();
+
 builder.Services.AddSingleton<
     IIntegrationEventPublisher,
     RabbitMqIntegrationEventPublisher>();
-// RabbitMQ Connection
-builder.Services.AddSingleton<
-    RabbitMqConnectionManager>();
 
 // RabbitMQ Topology
 builder.Services.AddHostedService<

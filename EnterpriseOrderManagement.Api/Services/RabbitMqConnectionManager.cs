@@ -3,6 +3,7 @@ using Microsoft.Extensions.Options;
 using RabbitMQ.Client;
 
 namespace EnterpriseOrderManagement.Api.Services;
+using EnterpriseOrderManagement.Api.Services.Interfaces;
 
 //Διαβάζει τις ρυθμίσεις από το IOptions<RabbitMqSettings>.
 //Ελέγχει αν υπάρχει ήδη ανοιχτή σύνδεση.
@@ -12,7 +13,7 @@ namespace EnterpriseOrderManagement.Api.Services;
 //Όταν τερματιστεί η εφαρμογή, κλείνει και αποδεσμεύει τη σύνδεση.
 public sealed class RabbitMqConnectionManager(
     IOptions<RabbitMqSettings> options)
-    : IAsyncDisposable
+    : IAsyncDisposable, IRabbitMqConnectionManager
 {
     private readonly RabbitMqSettings _settings = options.Value;
     private readonly SemaphoreSlim _semaphore = new(1, 1);
