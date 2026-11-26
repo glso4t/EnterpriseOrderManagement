@@ -1,4 +1,3 @@
-
 using EnterpriseOrderManagement.Api.Data;
 using EnterpriseOrderManagement.Api.Models;
 using Microsoft.EntityFrameworkCore;
@@ -33,9 +32,8 @@ public sealed class OutboxMessageClaimService(
 
         var lockToken = Guid.NewGuid();
 
-        //SQL Server supplies the time so workers do not depend on
-        //synchronized application-server clocks.
-        // Atomically select and claim the available messages.
+        // Atomically select and claim available messages.
+        // SQL Server supplies the shared UTC clock.
         var messages = await dbContext.OutboxMessages
             .FromSqlInterpolated($"""
                 DECLARE @NowUtc datetimeoffset(7) =
@@ -62,6 +60,14 @@ public sealed class OutboxMessageClaimService(
                 )
                 UPDATE [MessagesToClaim]
                 SET
+                    [AbandonedClaimCount] =
+                        [AbandonedClaimCount] +
+                        CASE
+                            WHEN [LockToken] IS NOT NULL
+                                AND [LockedUntilUtc] <= @NowUtc
+                            THEN 1
+                            ELSE 0
+                        END,
                     [LockedUntilUtc] = DATEADD(
                         MILLISECOND,
                         {leaseMilliseconds},
@@ -73,6 +79,7 @@ public sealed class OutboxMessageClaimService(
                 """)
             .AsNoTracking()
             .ToListAsync(cancellationToken);
+
         return messages;
     }
 }

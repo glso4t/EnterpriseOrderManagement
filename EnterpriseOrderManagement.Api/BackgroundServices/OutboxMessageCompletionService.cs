@@ -1,5 +1,4 @@
 using EnterpriseOrderManagement.Api.Data;
-
 using Microsoft.EntityFrameworkCore;
 
 namespace EnterpriseOrderManagement.Api.BackgroundServices;
@@ -9,7 +8,7 @@ public sealed class OutboxMessageCompletionService(
 {
     private const int MaxErrorLength = 2000;
 
-    public const int MaxAttempts = 10;
+    public const int MaxMessageFailures = 10;
 
     private static readonly TimeSpan BaseRetryDelay =
         TimeSpan.FromSeconds(5);
@@ -36,66 +35,102 @@ public sealed class OutboxMessageCompletionService(
                     [NextAttemptOnUtc] = NULL
                 WHERE [Id] = {messageId}
                     AND [LockToken] = {lockToken}
-                    AND [LockedUntilUtc] > TODATETIMEOFFSET(SYSUTCDATETIME(), '+00:00')
+                    AND [LockedUntilUtc] >
+                        TODATETIMEOFFSET(SYSUTCDATETIME(), '+00:00')
                     AND [ProcessedOnUtc] IS NULL
                     AND [DeadLetteredOnUtc] IS NULL;
                 """,
                 cancellationToken);
+
         return updatedRows == 1;
     }
 
-    // Schedules a retry with exponential backoff and jitter.
-    // Once the maximum number of claims is reached, the message is quarantined.
+    // Schedules retries for all failure categories.
+    // Only confirmed message-specific failures consume
+    // the quarantine budget.
     public async Task<bool> MarkFailedAsync(
         Guid messageId,
         Guid lockToken,
         int attemptCount,
+        OutboxFailureKind failureKind,
         string error,
         CancellationToken cancellationToken)
     {
         if (attemptCount <= 0)
         {
-            throw new ArgumentOutOfRangeException(nameof(attemptCount));
+            throw new ArgumentOutOfRangeException(
+                nameof(attemptCount));
         }
+
+        if (!Enum.IsDefined(failureKind))
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(failureKind));
+        }
+
+        ArgumentNullException.ThrowIfNull(error);
 
         var trimmedError = error.Length > MaxErrorLength
             ? error[..MaxErrorLength]
             : error;
+
+        // Only a message-specific failure consumes the
+        // message failure budget.
+        int messageFailureIncrement =
+            failureKind == OutboxFailureKind.Message ? 1 : 0;
+
         var retryDelay = CalculateRetryDelay(attemptCount);
+
         var retryDelayMilliseconds = checked(
             (int)retryDelay.TotalMilliseconds);
 
         var updatedRows = await dbContext.Database
             .ExecuteSqlInterpolatedAsync($"""
+                DECLARE @NowUtc datetimeoffset(7) =
+                    TODATETIMEOFFSET(SYSUTCDATETIME(), '+00:00');
+
                 UPDATE [dbo].[OutboxMessages]
                 SET
                     [Error] = {trimmedError},
+
+                    [MessageFailureCount] =
+                        [MessageFailureCount] +
+                        {messageFailureIncrement},
+
                     [NextAttemptOnUtc] = CASE
-                        WHEN [AttemptCount] >= {MaxAttempts}
-                            THEN NULL
+                        WHEN {messageFailureIncrement} = 1
+                            AND [MessageFailureCount] +
+                                {messageFailureIncrement}
+                                >= {MaxMessageFailures}
+                        THEN NULL
+
                         ELSE DATEADD(
                             MILLISECOND,
                             {retryDelayMilliseconds},
-                            TODATETIMEOFFSET(
-                                SYSUTCDATETIME(),
-                                '+00:00'))
+                            @NowUtc)
                     END,
+
                     [DeadLetteredOnUtc] = CASE
-                        WHEN [AttemptCount] >= {MaxAttempts}
-                            THEN TODATETIMEOFFSET(
-                                SYSUTCDATETIME(),
-                                '+00:00')
+                        WHEN {messageFailureIncrement} = 1
+                            AND [MessageFailureCount] +
+                                {messageFailureIncrement}
+                                >= {MaxMessageFailures}
+                        THEN @NowUtc
+
                         ELSE NULL
                     END,
+
                     [LockedUntilUtc] = NULL,
                     [LockToken] = NULL
+
                 WHERE [Id] = {messageId}
                     AND [LockToken] = {lockToken}
-                    AND [LockedUntilUtc] > TODATETIMEOFFSET(SYSUTCDATETIME(), '+00:00')
+                    AND [LockedUntilUtc] > @NowUtc
                     AND [ProcessedOnUtc] IS NULL
                     AND [DeadLetteredOnUtc] IS NULL;
                 """,
                 cancellationToken);
+
         return updatedRows == 1;
     }
 
@@ -112,7 +147,7 @@ public sealed class OutboxMessageCompletionService(
             baseMilliseconds,
             MaxRetryDelay.TotalMilliseconds);
 
-        // Add +/-20% jitter so many failed messages do not retry together.
+        // Add +/-20% jitter.
         var jitterFactor =
             0.8 + (Random.Shared.NextDouble() * 0.4);
 

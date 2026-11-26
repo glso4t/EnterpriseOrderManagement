@@ -227,6 +227,11 @@ namespace EnterpriseOrderManagement.Api.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<int>("AbandonedClaimCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
                     b.Property<int>("AttemptCount")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int")
@@ -251,6 +256,11 @@ namespace EnterpriseOrderManagement.Api.Migrations
 
                     b.Property<DateTimeOffset?>("LockedUntilUtc")
                         .HasColumnType("datetimeoffset");
+
+                    b.Property<int>("MessageFailureCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
 
                     b.Property<DateTimeOffset?>("NextAttemptOnUtc")
                         .HasColumnType("datetimeoffset");

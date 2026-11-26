@@ -1,5 +1,6 @@
 
 using System.Text;
+using System.Text.Json;
 using EnterpriseOrderManagement.Api.Configuration;
 using EnterpriseOrderManagement.Api.Models;
 using EnterpriseOrderManagement.Api.Services.Interfaces;
@@ -29,15 +30,9 @@ public sealed class RabbitMqIntegrationEventPublisher(
         OutboxMessage message,
         CancellationToken cancellationToken = default)
     {
+        
         ArgumentNullException.ThrowIfNull(message);
-
-        if (string.IsNullOrWhiteSpace(message.Type))
-        {
-            throw new ArgumentException(
-                "Outbox message Type cannot be empty.",
-                nameof(message));
-        }
-
+        ValidateMessage(message);
         string routingKey = message.Type;
 
         using var timeoutCts =
@@ -103,6 +98,39 @@ public sealed class RabbitMqIntegrationEventPublisher(
         }
     }
 
+///Methods
+    private static void ValidateMessage(OutboxMessage message)
+    {
+        if (string.IsNullOrWhiteSpace(message.Type))
+        {
+            throw new InvalidIntegrationMessageException(
+                "Outbox message Type cannot be empty.");
+        }
+
+        if (Encoding.UTF8.GetByteCount(message.Type) > 255)
+        {
+            throw new InvalidIntegrationMessageException(
+                "Outbox message routing key exceeds 255 UTF-8 bytes.");
+        }
+
+        if (string.IsNullOrWhiteSpace(message.Content))
+        {
+            throw new InvalidIntegrationMessageException(
+                "Outbox message content cannot be empty.");
+        }
+
+        try
+        {
+            using var document =
+                JsonDocument.Parse(message.Content);
+        }
+        catch (JsonException exception)
+        {
+            throw new InvalidIntegrationMessageException(
+                "Outbox message content is not valid JSON.",
+                exception);
+        }
+    }
     /// <summary>
     /// Returns an existing usable channel or creates a replacement.
     /// The caller must hold _channelSemaphore.
@@ -237,4 +265,5 @@ public sealed class RabbitMqIntegrationEventPublisher(
         // Do not dispose the semaphore while callers may
         // still be waiting to acquire it.
     }
+    
 }

@@ -213,6 +213,81 @@ public class RabbitMqIntegrationEventPublisherTests
             Times.Once);
     }
 
+    [Fact]
+    public async Task PublishAsync_EmptyType_RejectsMessageBeforeConnecting()
+    {
+        var harness = CreateHarness();
+
+        await using var publisher = harness.Publisher;
+
+        var message = CreateMessage(" ");
+
+        await Assert.ThrowsAsync<
+            InvalidIntegrationMessageException>(
+            () => publisher.PublishAsync(message));
+
+        harness.ConnectionManager.Verify(
+            manager => manager.GetConnectionAsync(
+                It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public async Task PublishAsync_InvalidJson_RejectsMessageBeforeConnecting()
+    {
+        var harness = CreateHarness();
+
+        await using var publisher = harness.Publisher;
+
+        string[] invalidContents =
+        [
+            "",
+            " ",
+            "{\"orderId\":}"
+        ];
+
+        foreach (var content in invalidContents)
+        {
+            var message = CreateMessage(
+                "orders.order-created.v2");
+
+            message.Content = content;
+
+            await Assert.ThrowsAsync<
+                InvalidIntegrationMessageException>(
+                () => publisher.PublishAsync(message));
+        }
+
+        harness.ConnectionManager.Verify(
+            manager => manager.GetConnectionAsync(
+                It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public async Task PublishAsync_OversizedRoutingKey_RejectsMessageBeforeConnecting()
+    {
+        var harness = CreateHarness();
+
+        await using var publisher = harness.Publisher;
+
+        // Each Greek alpha occupies two UTF-8 bytes.
+        // 128 characters result in 256 bytes.
+        var oversizedType = new string('α', 128);
+
+        var message = CreateMessage(oversizedType);
+
+        await Assert.ThrowsAsync<
+            InvalidIntegrationMessageException>(
+            () => publisher.PublishAsync(message));
+
+        harness.ConnectionManager.Verify(
+            manager => manager.GetConnectionAsync(
+                It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+
     private static PublisherHarness CreateHarness()
     {
         var channel = new Mock<IChannel>();

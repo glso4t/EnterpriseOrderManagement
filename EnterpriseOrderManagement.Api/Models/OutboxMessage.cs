@@ -25,6 +25,12 @@ public class OutboxMessage
     // Number of times a worker has claimed this message.
     public int AttemptCount { get; set; }
 
+        // Number of confirmed message-specific failures.
+    public int MessageFailureCount { get; set; }
+
+    // Number of previous claims recovered after lease expiration.
+    public int AbandonedClaimCount { get; set; }
+
     // When the latest publishing attempt was claimed.
     public DateTimeOffset? LastAttemptOnUtc { get; set; }
 

@@ -98,6 +98,10 @@ public class OutboxMessageClaimingIntegrationTests
             Assert.NotNull(message.LockedUntilUtc);
             Assert.NotNull(message.LockToken);
             Assert.Null(message.ProcessedOnUtc);
+
+            Assert.Equal(1, message.AttemptCount);
+            Assert.Equal(0, message.MessageFailureCount);
+            Assert.Equal(0, message.AbandonedClaimCount);
         });
 
         // Each batch must have a different claim token.

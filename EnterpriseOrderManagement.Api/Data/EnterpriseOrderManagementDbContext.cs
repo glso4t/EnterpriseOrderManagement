@@ -349,6 +349,12 @@ public class EnterpriseOrderManagementDbContext(
             entity.Property(message => message.Error)
                 .HasMaxLength(2000);
             entity.Property(message => message.AttemptCount)
+                .HasDefaultValue(0) //ορίζει την αρχική τιμή στη βάση δεδομένων.
+                .IsRequired();
+            entity.Property(message => message.MessageFailureCount)
+                .HasDefaultValue(0)
+                .IsRequired();
+            entity.Property(message => message.AbandonedClaimCount)
                 .HasDefaultValue(0)
                 .IsRequired();
             entity.HasIndex(message => new

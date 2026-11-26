@@ -26,6 +26,7 @@ public sealed class OutboxPublisherBackgroundService(
 
     private const int BatchSize = 5;
 
+    private const int AbandonedClaimWarningThreshold = 10;
     protected override async Task ExecuteAsync(
         CancellationToken stoppingToken)
     {
@@ -236,14 +237,24 @@ public sealed class OutboxPublisherBackgroundService(
     }
 
     private async Task ProcessMessageAsync(
-        OutboxMessage message,
-        IIntegrationEventPublisher publisher,
-        OutboxMessageCompletionService completionService,
-        Action stopLeaseRenewal,
-        CancellationToken cancellationToken)
+    OutboxMessage message,
+    IIntegrationEventPublisher publisher,
+    OutboxMessageCompletionService completionService,
+    Action stopLeaseRenewal,
+    CancellationToken cancellationToken)
     {
         // Every claimed message carries the token of its claim.
         var lockToken = message.LockToken!.Value;
+
+        if (message.AbandonedClaimCount >=
+            AbandonedClaimWarningThreshold)
+        {
+            logger.LogWarning(
+                "Outbox message {MessageId} has {AbandonedClaimCount} " +
+                "abandoned claims and requires investigation.",
+                message.Id,
+                message.AbandonedClaimCount);
+        }
 
         try
         {
@@ -260,32 +271,69 @@ public sealed class OutboxPublisherBackgroundService(
         }
         catch (Exception exception)
         {
-            logger.LogWarning(
-                exception,
-                "Failed to publish Outbox message {MessageId}.",
-                message.Id);
+            var failureKind =
+                OutboxFailureClassifier.Classify(exception);
 
-            // Stop the heartbeat before releasing the claim in the database.
+            if (failureKind == OutboxFailureKind.Unknown)
+            {
+                logger.LogError(
+                    exception,
+                    "Unclassified publishing failure for Outbox " +
+                    "message {MessageId}. Attempt: {AttemptCount}.",
+                    message.Id,
+                    message.AttemptCount);
+            }
+            else
+            {
+                logger.LogWarning(
+                    exception,
+                    "Failed to publish Outbox message {MessageId}. " +
+                    "Failure kind: {FailureKind}. " +
+                    "Attempt: {AttemptCount}. " +
+                    "Previous message failures: {MessageFailureCount}.",
+                    message.Id,
+                    failureKind,
+                    message.AttemptCount,
+                    message.MessageFailureCount);
+            }
+
+            // Stop scheduling renewals before releasing the claim.
             stopLeaseRenewal();
 
-            var markedFailed = await completionService.MarkFailedAsync(
-                message.Id,
-                lockToken,
-                message.AttemptCount,
-                exception.Message,
-                cancellationToken);
+            var markedFailed =
+                await completionService.MarkFailedAsync(
+                    message.Id,
+                    lockToken,
+                    message.AttemptCount,
+                    failureKind,
+                    exception.Message,
+                    cancellationToken);
 
             if (!markedFailed)
             {
                 logger.LogWarning(
-                    "Could not schedule retry for Outbox message {MessageId} because its lease was lost.",
+                    "Could not record failure for Outbox message " +
+                    "{MessageId} because its lease was lost.",
                     message.Id);
+
+                return;
+            }
+
+            if (failureKind == OutboxFailureKind.Message &&
+                message.MessageFailureCount + 1 >=
+                    OutboxMessageCompletionService.MaxMessageFailures)
+            {
+                logger.LogError(
+                    "Outbox message {MessageId} was quarantined " +
+                    "after {MessageFailureCount} message failures.",
+                    message.Id,
+                    message.MessageFailureCount + 1);
             }
 
             return;
         }
 
-        // Stop the heartbeat before completing and releasing the claim.
+        // Stop scheduling renewals before completing the claim.
         stopLeaseRenewal();
 
         var marked = await completionService.MarkProcessedAsync(
@@ -296,7 +344,8 @@ public sealed class OutboxPublisherBackgroundService(
         if (!marked)
         {
             logger.LogWarning(
-                "Outbox message {MessageId} was published but its lease was lost. It may be published again.",
+                "Outbox message {MessageId} was published but its " +
+                "lease was lost. It may be published again.",
                 message.Id);
         }
     }
