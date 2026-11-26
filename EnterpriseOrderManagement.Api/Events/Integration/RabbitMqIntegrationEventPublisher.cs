@@ -7,26 +7,23 @@ using RabbitMQ.Client;
 
 namespace EnterpriseOrderManagement.Api.Events.Integration;
 
-
-// Publishes Outbox messages through one reusable RabbitMQ publisher channel.
-// The channel is created lazily so application startup does not depend on
-// RabbitMQ being available.
+/// <summary>
+/// Publishes Outbox messages through a reusable RabbitMQ channel.
+/// Closed channels are retired and replaced when the connection
+/// is available.
+/// </summary>
 public sealed class RabbitMqIntegrationEventPublisher(
     IRabbitMqConnectionManager connectionManager,
     ILogger<RabbitMqIntegrationEventPublisher> logger)
     : IIntegrationEventPublisher, IAsyncDisposable
 {
-
-    // A single message must be confirmed within this time. The timeout also
-    // includes waiting for exclusive access to the shared publisher channel.
     private static readonly TimeSpan PublishTimeout =
         TimeSpan.FromSeconds(5);
+
     private readonly SemaphoreSlim _channelSemaphore = new(1, 1);
 
     private IChannel? _channel;
     private bool _disposed;
-
-
 
     public async Task PublishAsync(
         OutboxMessage message,
@@ -41,20 +38,16 @@ public sealed class RabbitMqIntegrationEventPublisher(
                 nameof(message));
         }
 
-        // The Outbox event Type is also our routing key.
         string routingKey = message.Type;
 
-        // The timeout covers connection, channel creation and publishing.
         using var timeoutCts =
             CancellationTokenSource.CreateLinkedTokenSource(
                 cancellationToken);
+
         timeoutCts.CancelAfter(PublishTimeout);
 
         try
         {
-            // RabbitMQ.Client 7.2.2 does not support concurrent publishing
-            // through the same IChannel. Keep exclusive access until the
-            // publish operation (including its publisher confirmation) ends.
             await _channelSemaphore.WaitAsync(timeoutCts.Token);
 
             try
@@ -80,9 +73,8 @@ public sealed class RabbitMqIntegrationEventPublisher(
                         message.OccurredOnUtc.ToUnixTimeSeconds())
                 };
 
-                // With confirmations enabled, this await completes only
-                // after RabbitMQ confirms the publication. mandatory=true
-                // also makes an unroutable message fail.
+                // Perform one publish attempt.
+                // The Outbox is responsible for scheduling retries.
                 await channel.BasicPublishAsync(
                     exchange: RabbitMqTopology.MainExchangeName,
                     routingKey: routingKey,
@@ -106,49 +98,88 @@ public sealed class RabbitMqIntegrationEventPublisher(
                 timeoutCts.IsCancellationRequested)
         {
             throw new TimeoutException(
-                $"RabbitMQ did not confirm Outbox message {message.Id} " +
-                $"within {PublishTimeout}.");
+                $"RabbitMQ publish operation for Outbox message " +
+                $"{message.Id} exceeded {PublishTimeout}.");
         }
     }
 
-    /// Returns the shared channel or creates it when this publisher is used
-    /// for the first time.
+    /// <summary>
+    /// Returns an existing usable channel or creates a replacement.
     /// The caller must hold _channelSemaphore.
-        private async Task<IChannel> GetOrCreateChannelAsync(
+    /// </summary>
+    private async Task<IChannel> GetOrCreateChannelAsync(
         CancellationToken cancellationToken)
     {
+        // Check connection availability before touching the channel.
+        // The connection manager retains ownership during recovery.
+        var connection = await connectionManager.GetConnectionAsync(
+            cancellationToken);
+
         if (_channel is { IsOpen: true } openChannel)
         {
             return openChannel;
         }
 
-        // Do not silently replace a channel that has already been created.
-        // A closed channel may be temporarily unavailable while the
-        // connection performs automatic recovery. The dedicated recovery
-        // logic (including permanently closed channels) is covered in 12.7.
         if (_channel is not null)
         {
-            throw new InvalidOperationException(
-                "The RabbitMQ publisher channel is closed and cannot be used.");
+            logger.LogWarning(
+                "RabbitMQ publisher channel is closed. " +
+                "Retiring the old channel before creating a replacement.");
+
+            await RetireChannelAsync(cancellationToken);
         }
 
-        var connection = await connectionManager.GetConnectionAsync(
-            cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
 
         var channelOptions = new CreateChannelOptions(
             publisherConfirmationsEnabled: true,
             publisherConfirmationTrackingEnabled: true);
 
-        var channel = await connection.CreateChannelAsync(
+        _channel = await connection.CreateChannelAsync(
             channelOptions,
             cancellationToken);
 
-        _channel = channel;
-        return channel;
+        logger.LogInformation(
+            "RabbitMQ publisher channel created with confirmations enabled.");
+
+        return _channel;
     }
 
-    // Closes and disposes the reusable channel during application shutdown.
-    // The same semaphore prevents disposal from racing with an active publish.
+    /// <summary>
+    /// Retires a closed or unavailable publisher channel.
+    /// Explicit close removes the channel from automatic recovery
+    /// tracking. Disposal is attempted even if close fails.
+    /// The caller must hold _channelSemaphore.
+    /// </summary>
+    private async Task RetireChannelAsync(
+        CancellationToken cancellationToken)
+    {
+        var oldChannel = _channel;
+
+        if (oldChannel is null)
+        {
+            return;
+        }
+
+        _channel = null;
+
+        try
+        {
+            await oldChannel.CloseAsync(
+                replyCode: 200,
+                replyText: "Replacing unavailable publisher channel.",
+                abort: true,
+                cancellationToken: cancellationToken);
+        }
+        finally
+        {
+            await oldChannel.DisposeAsync();
+        }
+    }
+
+    /// <summary>
+    /// Closes and disposes the publisher channel during shutdown.
+    /// </summary>
     public async ValueTask DisposeAsync()
     {
         await _channelSemaphore.WaitAsync();
@@ -179,11 +210,16 @@ public sealed class RabbitMqIntegrationEventPublisher(
                         replyText: "Publisher is shutting down.",
                         abort: false);
                 }
+                else
+                {
+                    await channel.CloseAsync(
+                        replyCode: 200,
+                        replyText: "Publisher is shutting down.",
+                        abort: true);
+                }
             }
             catch (Exception exception)
             {
-                // Graceful close is best-effort: the broker may already be
-                // unavailable during shutdown. Dispose must still run.
                 logger.LogWarning(
                     exception,
                     "Could not gracefully close the RabbitMQ publisher channel.");
@@ -198,8 +234,7 @@ public sealed class RabbitMqIntegrationEventPublisher(
             _channelSemaphore.Release();
         }
 
-        // The semaphore is intentionally left for garbage collection. A
-        // publish may already be waiting on it during shutdown; disposing the
-        // semaphore here would race with those waiters.
+        // Do not dispose the semaphore while callers may
+        // still be waiting to acquire it.
     }
 }

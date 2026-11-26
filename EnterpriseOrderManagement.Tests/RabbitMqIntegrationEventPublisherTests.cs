@@ -30,7 +30,7 @@ public class RabbitMqIntegrationEventPublisherTests
         harness.ConnectionManager.Verify(
             manager => manager.GetConnectionAsync(
                 It.IsAny<CancellationToken>()),
-            Times.Once);
+            Times.Exactly(2));
 
         harness.Connection.Verify(
             connection => connection.CreateChannelAsync(
