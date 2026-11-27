@@ -1,4 +1,3 @@
-
 using System.Collections.Concurrent;
 
 using EnterpriseOrderManagement.Api.Events.Integration;
@@ -27,6 +26,13 @@ public sealed class OutboxPublisherBackgroundService(
     private const int BatchSize = 5;
 
     private const int AbandonedClaimWarningThreshold = 10;
+
+    private readonly OutboxCircuitBreaker _circuitBreaker =
+        new(
+            TimeProvider.System,
+            failureThreshold: 3,
+            breakDuration: TimeSpan.FromSeconds(30));
+
     protected override async Task ExecuteAsync(
         CancellationToken stoppingToken)
     {
@@ -67,12 +73,30 @@ public sealed class OutboxPublisherBackgroundService(
             "Outbox Publisher background service stopped.");
     }
 
-    // Claims and processes batches until the backlog is drained.
+    // Claims and processes batches until the backlog is drained
+    // or the circuit breaker pauses publishing.
     private async Task PollPendingMessagesAsync(
         CancellationToken cancellationToken)
     {
         while (!cancellationToken.IsCancellationRequested)
         {
+            // Do not claim messages while the circuit is open.
+            var circuitState = _circuitBreaker.State;
+
+            if (circuitState == OutboxCircuitState.Open)
+            {
+                logger.LogDebug(
+                    "Outbox polling skipped because the circuit is open.");
+
+                return;
+            }
+
+            // During Half-Open, allow only one probe message.
+            int effectiveBatchSize =
+                circuitState == OutboxCircuitState.HalfOpen
+                    ? 1
+                    : BatchSize;
+
             await using var scope = scopeFactory.CreateAsyncScope();
 
             var claimService = scope.ServiceProvider
@@ -86,7 +110,7 @@ public sealed class OutboxPublisherBackgroundService(
 
             var claimedMessages = await claimService
                 .ClaimPendingMessagesAsync(
-                    BatchSize,
+                    effectiveBatchSize,
                     LeaseDuration,
                     cancellationToken);
 
@@ -99,19 +123,26 @@ public sealed class OutboxPublisherBackgroundService(
             }
 
             logger.LogInformation(
-                "Outbox Publisher claimed {MessageCount} message(s).",
-                claimedMessages.Count);
+                "Outbox Publisher claimed {MessageCount} message(s). " +
+                "Circuit state: {CircuitState}.",
+                claimedMessages.Count,
+                circuitState);
 
-            // All messages in a claimed batch already have an active lease.
-            // Renew every still-active lease while the batch is processed.
             await ProcessClaimedBatchAsync(
                 claimedMessages,
                 publisher,
                 completionService,
                 cancellationToken);
 
-            // A partial batch means the backlog is drained.
-            if (claimedMessages.Count < BatchSize)
+            // Stop draining the backlog if the circuit is not closed.
+            // If a Half-Open probe was successful, the circuit is closed
+            // and normal processing may continue.
+            if (_circuitBreaker.State != OutboxCircuitState.Closed)
+            {
+                return;
+            }
+
+            if (claimedMessages.Count < effectiveBatchSize)
             {
                 return;
             }
@@ -139,15 +170,52 @@ public sealed class OutboxPublisherBackgroundService(
             activeClaims,
             renewalCts.Token);
 
+        // Once the circuit opens during a batch, do not publish
+        // any of its remaining messages.
+        bool deferRemainingMessages = false;
+
         try
         {
             foreach (var message in claimedMessages)
             {
+                cancellationToken.ThrowIfCancellationRequested();
+
                 try
                 {
                     void StopLeaseRenewal()
                     {
                         activeClaims.TryRemove(message.Id, out _);
+                    }
+
+                    if (deferRemainingMessages ||
+                        !_circuitBreaker.CanAttempt)
+                    {
+                        deferRemainingMessages = true;
+
+                        StopLeaseRenewal();
+
+                        var released =
+                            await completionService.ReleaseClaimAsync(
+                                message.Id,
+                                message.LockToken!.Value,
+                                cancellationToken);
+
+                        if (released)
+                        {
+                            logger.LogInformation(
+                                "Released claim for Outbox message {MessageId} " +
+                                "because the circuit is open.",
+                                message.Id);
+                        }
+                        else
+                        {
+                            logger.LogWarning(
+                                "Could not release claim for Outbox message " +
+                                "{MessageId}. Its lease may have been lost.",
+                                message.Id);
+                        }
+
+                        continue;
                     }
 
                     await ProcessMessageAsync(
@@ -156,11 +224,15 @@ public sealed class OutboxPublisherBackgroundService(
                         completionService,
                         StopLeaseRenewal,
                         cancellationToken);
+
+                    if (_circuitBreaker.State !=
+                        OutboxCircuitState.Closed)
+                    {
+                        deferRemainingMessages = true;
+                    }
                 }
                 finally
                 {
-                    // Once completed or failed, this message no longer
-                    // needs its lease renewed.
                     activeClaims.TryRemove(message.Id, out _);
                 }
             }
@@ -194,8 +266,6 @@ public sealed class OutboxPublisherBackgroundService(
             var leaseRenewalService = scope.ServiceProvider
                 .GetRequiredService<OutboxMessageLeaseRenewalService>();
 
-            // Snapshot avoids iterating a collection while messages are
-            // being removed from the active batch.
             foreach (var claim in activeClaims.ToArray())
             {
                 bool renewed;
@@ -215,8 +285,6 @@ public sealed class OutboxPublisherBackgroundService(
                 }
                 catch (Exception exception)
                 {
-                    // A transient database error is logged. The next
-                    // heartbeat will try again while the lease is valid.
                     logger.LogError(
                         exception,
                         "Could not renew the lease for Outbox message {MessageId}.",
@@ -229,7 +297,8 @@ public sealed class OutboxPublisherBackgroundService(
                     activeClaims.TryRemove(claim.Key, out _))
                 {
                     logger.LogWarning(
-                        "Lease for Outbox message {MessageId} could not be renewed. The claim may have expired or changed owner.",
+                        "Lease for Outbox message {MessageId} could not be renewed. " +
+                        "The claim may have expired or changed owner.",
                         claim.Key);
                 }
             }
@@ -237,13 +306,12 @@ public sealed class OutboxPublisherBackgroundService(
     }
 
     private async Task ProcessMessageAsync(
-    OutboxMessage message,
-    IIntegrationEventPublisher publisher,
-    OutboxMessageCompletionService completionService,
-    Action stopLeaseRenewal,
-    CancellationToken cancellationToken)
+        OutboxMessage message,
+        IIntegrationEventPublisher publisher,
+        OutboxMessageCompletionService completionService,
+        Action stopLeaseRenewal,
+        CancellationToken cancellationToken)
     {
-        // Every claimed message carries the token of its claim.
         var lockToken = message.LockToken!.Value;
 
         if (message.AbandonedClaimCount >=
@@ -265,14 +333,26 @@ public sealed class OutboxPublisherBackgroundService(
         catch (OperationCanceledException)
             when (cancellationToken.IsCancellationRequested)
         {
-            // Shutting down: leave the lease to expire so that
-            // another worker can retry the message.
+            // Application shutdown is not a publishing failure.
             throw;
         }
         catch (Exception exception)
         {
             var failureKind =
                 OutboxFailureClassifier.Classify(exception);
+
+            var previousCircuitState =
+                _circuitBreaker.State;
+
+            _circuitBreaker.RecordFailure(failureKind);
+
+            if (previousCircuitState != OutboxCircuitState.Open &&
+                _circuitBreaker.State == OutboxCircuitState.Open)
+            {
+                logger.LogWarning(
+                    "Outbox circuit opened after publishing failures. " +
+                    "New claims are temporarily paused.");
+            }
 
             if (failureKind == OutboxFailureKind.Unknown)
             {
@@ -297,7 +377,6 @@ public sealed class OutboxPublisherBackgroundService(
                     message.MessageFailureCount);
             }
 
-            // Stop scheduling renewals before releasing the claim.
             stopLeaseRenewal();
 
             var markedFailed =
@@ -333,7 +412,19 @@ public sealed class OutboxPublisherBackgroundService(
             return;
         }
 
-        // Stop scheduling renewals before completing the claim.
+        // A successful confirmed publish provides evidence
+        // that the RabbitMQ communication path is working.
+        var circuitWasHalfOpen =
+            _circuitBreaker.State == OutboxCircuitState.HalfOpen;
+
+        _circuitBreaker.RecordSuccess();
+
+        if (circuitWasHalfOpen)
+        {
+            logger.LogInformation(
+                "Outbox circuit closed after successful probe publishing.");
+        }
+
         stopLeaseRenewal();
 
         var marked = await completionService.MarkProcessedAsync(

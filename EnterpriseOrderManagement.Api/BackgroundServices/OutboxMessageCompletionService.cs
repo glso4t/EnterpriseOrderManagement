@@ -41,9 +41,35 @@ public sealed class OutboxMessageCompletionService(
                     AND [DeadLetteredOnUtc] IS NULL;
                 """,
                 cancellationToken);
-
         return updatedRows == 1;
     }
+
+
+// Releases a claimed message without recording a publish failure.
+// Used when publishing is skipped because the circuit is open.
+public async Task<bool> ReleaseClaimAsync(
+    Guid messageId,
+    Guid lockToken,
+    CancellationToken cancellationToken)
+{
+    var updatedRows = await dbContext.Database
+        .ExecuteSqlInterpolatedAsync($"""
+            DECLARE @NowUtc datetimeoffset(7) =
+                TODATETIMEOFFSET(SYSUTCDATETIME(), '+00:00');
+            UPDATE [dbo].[OutboxMessages]
+            SET
+                [LockToken] = NULL,
+                [LockedUntilUtc] = NULL
+            WHERE [Id] = {messageId}
+                AND [LockToken] = {lockToken}
+                AND [LockedUntilUtc] > @NowUtc
+                AND [ProcessedOnUtc] IS NULL
+                AND [DeadLetteredOnUtc] IS NULL;
+            """,
+            cancellationToken);
+    return updatedRows == 1;
+}
+
 
     // Schedules retries for all failure categories.
     // Only confirmed message-specific failures consume
@@ -130,7 +156,6 @@ public sealed class OutboxMessageCompletionService(
                     AND [DeadLetteredOnUtc] IS NULL;
                 """,
                 cancellationToken);
-
         return updatedRows == 1;
     }
 

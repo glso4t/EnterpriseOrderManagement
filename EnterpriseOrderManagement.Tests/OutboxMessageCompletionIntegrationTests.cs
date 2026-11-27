@@ -342,6 +342,153 @@ public class OutboxMessageCompletionIntegrationTests
         }
     }
 
+    [Fact]
+    public async Task ReleaseClaim_WithOwnedToken_ReleasesWithoutFailure()  //Επιτυχής αποδέσμευση claim
+    {
+        var lockToken = Guid.NewGuid();
+
+        var message = await SeedClaimedMessageAsync(
+            lockToken,
+            attemptCount: 5,
+            messageFailureCount: 2);
+
+        try
+        {
+            using var scope = _factory.Services.CreateScope();
+
+            var dbContext = scope.ServiceProvider
+                .GetRequiredService<EnterpriseOrderManagementDbContext>();
+
+            var completionService = scope.ServiceProvider
+                .GetRequiredService<OutboxMessageCompletionService>();
+
+            // Simulate diagnostic information from previous attempts.
+            await dbContext.OutboxMessages
+                .Where(stored => stored.Id == message.Id)
+                .ExecuteUpdateAsync(setters => setters
+                    .SetProperty(
+                        stored => stored.Error,
+                        "previous failure")
+                    .SetProperty(
+                        stored => stored.AbandonedClaimCount,
+                        1));
+
+            var before = await ReadMessageAsync(message.Id);
+
+            var released = await completionService.ReleaseClaimAsync(
+                message.Id,
+                lockToken,
+                CancellationToken.None);
+
+            Assert.True(released);
+
+            var stored = await ReadMessageAsync(message.Id);
+
+            Assert.Null(stored.LockToken);
+            Assert.Null(stored.LockedUntilUtc);
+
+            Assert.Null(stored.ProcessedOnUtc);
+            Assert.Null(stored.DeadLetteredOnUtc);
+
+            Assert.Equal(5, stored.AttemptCount);
+            Assert.Equal(2, stored.MessageFailureCount);
+            Assert.Equal(1, stored.AbandonedClaimCount);
+
+            Assert.Equal(before.Error, stored.Error);
+
+            Assert.Equal(
+                before.NextAttemptOnUtc,
+                stored.NextAttemptOnUtc);
+
+            Assert.Equal(
+                before.LastAttemptOnUtc,
+                stored.LastAttemptOnUtc);
+        }
+        finally
+        {
+            await DeleteTestMessageAsync(message.Id);
+        }
+    }
+
+    [Fact]
+    public async Task ReleaseClaim_WithWrongToken_DoesNotReleaseMessage()   //λανθασμένο LockToken
+    {
+        var lockToken = Guid.NewGuid();
+
+        var message = await SeedClaimedMessageAsync(
+            lockToken);
+
+        try
+        {
+            using var scope = _factory.Services.CreateScope();
+
+            var completionService = scope.ServiceProvider
+                .GetRequiredService<OutboxMessageCompletionService>();
+
+            var released = await completionService.ReleaseClaimAsync(
+                message.Id,
+                Guid.NewGuid(),
+                CancellationToken.None);
+
+            Assert.False(released);
+
+            var stored = await ReadMessageAsync(message.Id);
+
+            Assert.Equal(lockToken, stored.LockToken);
+            Assert.NotNull(stored.LockedUntilUtc);
+        }
+        finally
+        {
+            await DeleteTestMessageAsync(message.Id);
+        }
+    }
+
+    [Fact]
+    public async Task ReleaseClaim_WithExpiredLease_DoesNotReleaseMessage() //ληγμένο lease
+    {
+        var lockToken = Guid.NewGuid();
+
+        var message = await SeedClaimedMessageAsync(
+            lockToken);
+
+        try
+        {
+            using var scope = _factory.Services.CreateScope();
+
+            var dbContext = scope.ServiceProvider
+                .GetRequiredService<EnterpriseOrderManagementDbContext>();
+
+            var completionService = scope.ServiceProvider
+                .GetRequiredService<OutboxMessageCompletionService>();
+
+            var databaseNow =
+                await ReadDatabaseUtcAsync(dbContext);
+
+            await dbContext.OutboxMessages
+                .Where(stored => stored.Id == message.Id)
+                .ExecuteUpdateAsync(setters => setters.SetProperty(
+                    stored => stored.LockedUntilUtc,
+                    (DateTimeOffset?)databaseNow.AddMinutes(-1)));
+
+            var released = await completionService.ReleaseClaimAsync(
+                message.Id,
+                lockToken,
+                CancellationToken.None);
+
+            Assert.False(released);
+
+            var stored = await ReadMessageAsync(message.Id);
+
+            Assert.Equal(lockToken, stored.LockToken);
+            Assert.NotNull(stored.LockedUntilUtc);
+            Assert.Equal(0, stored.MessageFailureCount);
+        }
+        finally
+        {
+            await DeleteTestMessageAsync(message.Id);
+        }
+    }
+
 
 
     // Seeds a message that is already claimed (valid lease and token).
